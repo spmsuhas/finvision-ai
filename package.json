@@ -1,0 +1,26 @@
+{
+  "name": "finvision-ai",
+  "version": "1.0.0",
+  "description": "AI-Driven Financial Planning Platform for the Indian Market",
+  "main": "src/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "keywords": ["fintech", "financial-planning", "india", "ai"],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "tailwindcss": "^4.2.2",
+    "vite": "^8.0.0"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "firebase": "^12.10.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1"
+  }
+}

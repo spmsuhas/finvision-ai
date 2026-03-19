@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinVision AI — Your Financial Future, Visualized</title>
+  <meta name="description" content="AI-powered financial planning for modern India. Forecast your wealth, optimize taxes, and achieve every life goal." />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body class="bg-surface-1 text-slate-100 font-sans antialiased">
+
+  <!-- ═══════════════════════════════════════════════════════════
+       AUTH MODAL
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="auth-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+    <div class="modal-card w-full max-w-md">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 bg-brand/20 rounded-xl flex items-center justify-center">
+            <svg class="w-5 h-5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+          </div>
+          <h2 id="auth-modal-title" class="text-lg font-semibold text-white">Sign in to FinVision AI</h2>
+        </div>
+        <button id="auth-modal-close" class="icon-btn" aria-label="Close">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+
+      <!-- Tab Switcher -->
+      <div class="flex bg-surface-3 rounded-xl p-1 mb-6" role="tablist">
+        <button id="auth-tab-signin" class="auth-tab active" role="tab" aria-selected="true" data-tab="signin">Sign In</button>
+        <button id="auth-tab-signup" class="auth-tab" role="tab" aria-selected="false" data-tab="signup">Create Account</button>
+      </div>
+
+      <!-- Sign In Panel -->
+      <div id="auth-panel-signin" class="auth-panel">
+        <!-- Google OAuth -->
+        <button id="btn-google-signin" class="btn-oauth w-full mb-4">
+          <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Continue with Google
+        </button>
+
+        <div class="divider-text">or</div>
+
+        <form id="form-signin" class="space-y-4" novalidate>
+          <div class="form-group">
+            <label for="signin-email" class="form-label">Email address</label>
+            <input id="signin-email" type="email" autocomplete="email" class="form-input" placeholder="you@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="signin-password" class="form-label">Password</label>
+            <div class="relative">
+              <input id="signin-password" type="password" autocomplete="current-password" class="form-input pr-10" placeholder="••••••••" required />
+              <button type="button" class="password-toggle" aria-label="Toggle password visibility" data-target="signin-password">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div id="signin-error" class="error-message hidden"></div>
+          <button type="submit" class="btn-primary w-full">Sign In</button>
+        </form>
+        <button id="btn-forgot-password" class="text-sm text-brand hover:text-brand-light mt-3 block text-center w-full transition-colors">
+          Forgot your password?
+        </button>
+      </div>
+
+      <!-- Sign Up Panel -->
+      <div id="auth-panel-signup" class="auth-panel hidden">
+        <button id="btn-google-signup" class="btn-oauth w-full mb-4">
+          <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+          Sign up with Google
+        </button>
+
+        <div class="divider-text">or</div>
+
+        <form id="form-signup" class="space-y-4" novalidate>
+          <div class="form-group">
+            <label for="signup-name" class="form-label">Full name</label>
+            <input id="signup-name" type="text" autocomplete="name" class="form-input" placeholder="Rajesh Kumar" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-email" class="form-label">Email address</label>
+            <input id="signup-email" type="email" autocomplete="email" class="form-input" placeholder="you@example.com" required />
+          </div>
+          <div class="form-group">
+            <label for="signup-password" class="form-label">Password</label>
+            <div class="relative">
+              <input id="signup-password" type="password" autocomplete="new-password" class="form-input pr-10" placeholder="Min. 8 characters" required minlength="8" />
+              <button type="button" class="password-toggle" aria-label="Toggle password visibility" data-target="signup-password">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+              </button>
+            </div>
+          </div>
+          <div id="signup-error" class="error-message hidden"></div>
+          <button type="submit" class="btn-primary w-full">Create Account</button>
+        </form>
+      </div>
+
+      <!-- Footer Note -->
+      <p class="text-xs text-slate-500 text-center mt-4">
+        By continuing, you agree to our Terms of Service and Privacy Policy. Your financial data is encrypted and never shared.
+      </p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       TOP NAVIGATION HEADER
+  ═══════════════════════════════════════════════════════════ -->
+  <header id="app-header" class="fixed top-0 left-0 right-0 z-40 h-16 bg-surface-2/95 backdrop-blur-md border-b border-white/5 flex items-center px-4 gap-4">
+    <!-- Logo -->
+    <div class="flex items-center gap-2.5 min-w-[14rem]">
+      <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center flex-shrink-0">
+        <svg class="w-5 h-5 text-black" fill="currentColor" viewBox="0 0 24 24">
+          <path d="M3 3h18v2H3V3zm0 4h12v2H3V7zm0 4h18v2H3v-2zm0 4h12v2H3v-2zm0 4h18v2H3v-2z"/>
+          <circle cx="19" cy="8" r="3" fill="#000"/>
+        </svg>
+      </div>
+      <div class="leading-none">
+        <span class="text-white font-bold text-base tracking-tight">FinVision</span>
+        <span class="text-brand font-bold text-base"> AI</span>
+      </div>
+    </div>
+
+    <!-- Desktop Tab Navigation -->
+    <nav class="hidden md:flex items-center gap-1 flex-1" role="navigation" aria-label="Main navigation">
+      <button class="nav-tab active" data-section="dashboard">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10-3a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-tab" data-section="inputs">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        My Plan
+      </button>
+      <button class="nav-tab" data-section="projections">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+        Projections
+      </button>
+      <button class="nav-tab" data-section="tax">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z"/></svg>
+        Tax Optimizer
+      </button>
+      <button class="nav-tab" data-section="ai">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        AI Advisor
+      </button>
+      <button class="nav-tab" data-section="reports">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Reports
+      </button>
+    </nav>
+
+    <!-- Right Controls -->
+    <div class="flex items-center gap-2 ml-auto">
+      <!-- Scenario Selector -->
+      <div class="hidden lg:flex items-center gap-2 bg-surface-3 rounded-lg px-3 py-1.5 border border-white/5">
+        <svg class="w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+        <select id="scenario-selector" class="bg-transparent text-slate-300 text-xs focus:outline-none cursor-pointer" aria-label="Select scenario">
+          <option value="default">Base Scenario</option>
+        </select>
+      </div>
+
+      <!-- Save Button -->
+      <button id="btn-save-scenario" class="hidden icon-btn text-slate-400 hover:text-white" title="Save current scenario" aria-label="Save scenario">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+      </button>
+
+      <!-- Auth Button -->
+      <div id="auth-guest-area">
+        <button id="btn-open-auth" class="btn-primary text-sm py-1.5 px-4">Sign In</button>
+      </div>
+      <div id="auth-user-area" class="hidden flex items-center gap-2">
+        <div id="user-avatar" class="w-8 h-8 rounded-full bg-brand/30 flex items-center justify-center text-brand text-sm font-semibold cursor-pointer" title="Account settings">
+          <span id="user-initial">U</span>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Toggle -->
+      <button id="mobile-menu-toggle" class="md:hidden icon-btn" aria-label="Open menu">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MOBILE SIDEBAR OVERLAY
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/60 z-30 hidden md:hidden" aria-hidden="true"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       LEFT SIDEBAR
+  ═══════════════════════════════════════════════════════════ -->
+  <aside id="sidebar" class="fixed left-0 top-16 bottom-0 w-64 bg-surface-2 border-r border-white/5 z-30 flex flex-col overflow-y-auto transition-transform duration-300 -translate-x-full md:translate-x-0" aria-label="Sidebar navigation">
+
+    <!-- Plan Health Score -->
+    <div class="p-4 border-b border-white/5">
+      <div class="bg-surface-3 rounded-xl p-3.5">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">Plan Health</span>
+          <span id="health-score-label" class="text-xs font-bold text-amber-400">–</span>
+        </div>
+        <div class="health-bar-track">
+          <div id="health-bar" class="health-bar-fill" style="width: 0%"></div>
+        </div>
+        <p id="health-score-message" class="text-xs text-slate-500 mt-2">Enter your details to calculate</p>
+      </div>
+    </div>
+
+    <!-- Sidebar Nav Links -->
+    <nav class="flex-1 p-3 space-y-1" role="navigation" aria-label="Section navigation">
+      <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-3 pt-2 pb-1">Overview</p>
+      <button class="sidebar-link active" data-section="dashboard">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke-width="2"/></svg>
+        Dashboard
+      </button>
+
+      <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Your Data</p>
+      <button class="sidebar-link" data-section="inputs" data-sub="personal">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        Personal Details
+        <span id="sidebar-badge-personal" class="sidebar-badge hidden">!</span>
+      </button>
+      <button class="sidebar-link" data-section="inputs" data-sub="assets">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        Assets &amp; Portfolio
+      </button>
+      <button class="sidebar-link" data-section="inputs" data-sub="expenses">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        Monthly Expenses
+      </button>
+      <button class="sidebar-link" data-section="inputs" data-sub="goals">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/></svg>
+        Life Goals
+        <span id="sidebar-goals-count" class="sidebar-badge bg-brand/20 text-brand">0</span>
+      </button>
+
+      <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Analysis</p>
+      <button class="sidebar-link" data-section="projections">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        Wealth Projections
+      </button>
+      <button class="sidebar-link" data-section="tax">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+        Tax Optimizer
+      </button>
+      <button class="sidebar-link" data-section="ai">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+        AI Advisor
+        <span class="sidebar-badge bg-emerald-500/20 text-emerald-400 text-[10px]">Beta</span>
+      </button>
+
+      <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Export</p>
+      <button class="sidebar-link" data-section="reports">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Download Report
+      </button>
+    </nav>
+
+    <!-- Sidebar Footer -->
+    <div class="p-4 border-t border-white/5">
+      <div class="text-xs text-slate-500 text-center space-y-1">
+        <p>Rates &amp; projections per ARD v1.0</p>
+        <p class="text-[10px]">© 2026 FinVision AI · FY 2025-26</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MAIN CONTENT AREA
+  ═══════════════════════════════════════════════════════════ -->
+  <main id="main-content" class="md:ml-64 pt-16 min-h-screen">
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: DASHBOARD
+    ───────────────────────────────────────────────────────── -->
+    <section id="section-dashboard" class="section-panel p-6 space-y-6">
+      <!-- Welcome Banner -->
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-white">Good morning, <span id="dash-user-name">Investor</span> 👋</h1>
+          <p class="text-sm text-slate-400 mt-0.5">Your financial snapshot for <span id="dash-plan-year">FY 2025-26</span></p>
+        </div>
+        <button class="btn-primary text-sm flex items-center gap-2 self-start sm:self-auto" data-section="inputs" data-sub="personal">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Update My Plan
+        </button>
+      </div>
+
+      <!-- KPI Cards Row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="kpi-card">
+          <div class="kpi-icon bg-blue-500/15 text-blue-400">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <p class="kpi-label">Current Corpus</p>
+            <p id="kpi-current-corpus" class="kpi-value">₹0</p>
+            <p class="kpi-change text-slate-500">Total invested today</p>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon bg-brand/15 text-brand">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+          </div>
+          <div>
+            <p class="kpi-label">Required Corpus</p>
+            <p id="kpi-required-corpus" class="kpi-value">₹0</p>
+            <p id="kpi-corpus-gap" class="kpi-change text-slate-500">At retirement age</p>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon bg-emerald-500/15 text-emerald-400">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          </div>
+          <div>
+            <p class="kpi-label">Monthly Investable</p>
+            <p id="kpi-monthly-surplus" class="kpi-value">₹0</p>
+            <p class="kpi-change text-slate-500">After all expenses</p>
+          </div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon bg-purple-500/15 text-purple-400">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          </div>
+          <div>
+            <p class="kpi-label">Retirement Age</p>
+            <p id="kpi-retirement-age" class="kpi-value">–</p>
+            <p id="kpi-years-to-retire" class="kpi-change text-slate-500">Years remaining</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dashboard Charts Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <!-- Corpus Trend Preview -->
+        <div class="lg:col-span-2 card">
+          <div class="card-header">
+            <h2 class="card-title">Wealth Accumulation Preview</h2>
+            <button class="text-xs text-brand hover:text-brand-light transition-colors" data-section="projections">Full View →</button>
+          </div>
+          <div class="chart-container h-56">
+            <canvas id="chart-corpus-preview"></canvas>
+          </div>
+          <p class="text-xs text-slate-500 mt-2 text-center">Projected corpus from today to age 100 · Click "Full View" for interactive detail</p>
+        </div>
+
+        <!-- Asset Allocation Doughnut -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Asset Allocation</h2>
+            <button class="icon-btn text-slate-400" title="Edit allocation" data-section="inputs" data-sub="assets" aria-label="Edit asset allocation">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            </button>
+          </div>
+          <div class="chart-container h-44 flex items-center justify-center">
+            <canvas id="chart-allocation-donut"></canvas>
+          </div>
+          <div id="allocation-legend" class="flex justify-center gap-4 mt-2 text-xs">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span><span class="text-slate-300">Equity <strong id="alloc-equity-pct" class="text-white">–%</strong></span></span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span><span class="text-slate-300">Debt <strong id="alloc-debt-pct" class="text-white">–%</strong></span></span>
+          </div>
+          <div class="mt-3 border-t border-white/5 pt-3">
+            <div class="flex justify-between text-xs text-slate-400">
+              <span>Blended Return</span>
+              <span id="blended-cagr" class="font-semibold text-emerald-400">–%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Expense & Goals Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Monthly Expense Breakdown -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Monthly Cash Flow</h2>
+            <button class="text-xs text-brand hover:text-brand-light transition-colors" data-section="inputs" data-sub="expenses">Edit →</button>
+          </div>
+          <div class="chart-container h-48">
+            <canvas id="chart-expense-bar"></canvas>
+          </div>
+        </div>
+
+        <!-- Goals Progress -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Life Goals Tracker</h2>
+            <button class="text-xs text-brand hover:text-brand-light transition-colors" data-section="inputs" data-sub="goals">Manage →</button>
+          </div>
+          <div id="goals-preview-list" class="space-y-3 mt-1">
+            <!-- Populated by JS -->
+            <div class="text-center py-8 text-slate-500">
+              <svg class="w-10 h-10 mx-auto mb-2 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+              <p class="text-sm">No goals added yet</p>
+              <button class="btn-ghost text-sm mt-2" data-section="inputs" data-sub="goals">+ Add your first goal</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tax Regime Quick Summary -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Tax Optimization Summary</h2>
+          <button class="text-xs text-brand hover:text-brand-light transition-colors" data-section="tax">Full Analysis →</button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+          <div class="bg-surface-3 rounded-xl p-4 text-center">
+            <p class="text-xs text-slate-400 mb-1">New Regime Tax</p>
+            <p id="tax-new-regime-dash" class="text-lg font-bold text-white">₹–</p>
+            <p class="text-xs text-slate-500 mt-0.5">Section 115BAC</p>
+          </div>
+          <div class="bg-surface-3 rounded-xl p-4 text-center">
+            <p class="text-xs text-slate-400 mb-1">Old Regime Tax</p>
+            <p id="tax-old-regime-dash" class="text-lg font-bold text-white">₹–</p>
+            <p class="text-xs text-slate-500 mt-0.5">With deductions</p>
+          </div>
+          <div id="tax-recommendation-card" class="rounded-xl p-4 text-center bg-emerald-500/10 border border-emerald-500/20">
+            <p class="text-xs text-slate-400 mb-1">Recommended</p>
+            <p id="tax-recommended-regime-dash" class="text-lg font-bold text-emerald-400">–</p>
+            <p id="tax-saving-dash" class="text-xs text-emerald-500 mt-0.5">Enter income to calculate</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: INPUTS (MY PLAN)
+    ───────────────────────────────────────────────────────── -->
+    <section id="section-inputs" class="section-panel hidden p-6">
+      <div class="mb-6">
+        <h1 class="text-2xl font-bold text-white">My Financial Plan</h1>
+        <p class="text-sm text-slate-400 mt-0.5">All fields update your projections in real-time</p>
+      </div>
+
+      <!-- Sub-section Tabs -->
+      <div class="flex gap-1 bg-surface-3 rounded-xl p-1 mb-6 w-fit">
+        <button class="input-tab active" data-sub="personal">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          Personal
+        </button>
+        <button class="input-tab" data-sub="assets">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
+          Assets
+        </button>
+        <button class="input-tab" data-sub="expenses">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+          Expenses
+        </button>
+        <button class="input-tab" data-sub="goals">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
+          Goals
+        </button>
+      </div>
+
+      <!-- Personal Details Sub-panel -->
+      <div id="inputs-sub-personal" class="input-sub-panel space-y-6">
+        <div id="form-personal-details"></div><!-- Populated by PersonalDetailsForm.js -->
+      </div>
+
+      <!-- Assets Sub-panel -->
+      <div id="inputs-sub-assets" class="input-sub-panel hidden space-y-6">
+        <div id="form-assets"></div><!-- Populated by AssetsForm.js -->
+      </div>
+
+      <!-- Expenses Sub-panel -->
+      <div id="inputs-sub-expenses" class="input-sub-panel hidden space-y-6">
+        <div id="form-expenses"></div><!-- Populated by ExpensesForm.js -->
+      </div>
+
+      <!-- Goals Sub-panel -->
+      <div id="inputs-sub-goals" class="input-sub-panel hidden space-y-6">
+        <div id="form-goals"></div><!-- Populated by GoalsForm.js -->
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: PROJECTIONS
+    ───────────────────────────────────────────────────────── -->
+    <section id="section-projections" class="section-panel hidden p-6 space-y-6">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-white">Wealth Projections</h1>
+          <p class="text-sm text-slate-400 mt-0.5">Lifetime corpus trajectory from <span id="proj-start-year">–</span> to <span id="proj-end-year">–</span></p>
+        </div>
+        <div class="flex items-center gap-2">
+          <!-- Chart Type Toggle -->
+          <div class="flex bg-surface-3 rounded-lg p-0.5 border border-white/5">
+            <button id="chart-toggle-area" class="chart-toggle-btn active" title="Area chart" aria-label="Area chart">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21l4-8 4 5 5-11"/></svg>
+            </button>
+            <button id="chart-toggle-bar" class="chart-toggle-btn" title="Bar chart" aria-label="Bar chart">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Corpus Chart -->
+      <div class="card">
+        <div class="chart-container h-96">
+          <canvas id="chart-corpus-main"></canvas>
+        </div>
+        <!-- Chart Tooltip (custom) -->
+        <div id="chart-tooltip" class="chart-tooltip hidden" role="tooltip"></div>
+      </div>
+
+      <!-- Summary Stats Below Chart -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="stat-chip">
+          <span class="stat-chip-label">Peak Corpus</span>
+          <span id="stat-peak-corpus" class="stat-chip-value text-emerald-400">₹–</span>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Peak Age</span>
+          <span id="stat-peak-age" class="stat-chip-value">–</span>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Corpus @ Retire</span>
+          <span id="stat-retire-corpus" class="stat-chip-value text-brand">₹–</span>
+        </div>
+        <div class="stat-chip">
+          <span class="stat-chip-label">Legacy Corpus (Age 100)</span>
+          <span id="stat-legacy-corpus" class="stat-chip-value text-purple-400">₹–</span>
+        </div>
+      </div>
+
+      <!-- Year-by-Year Data Table -->
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Year-by-Year Projection Table</h2>
+          <div class="flex items-center gap-2">
+            <input type="search" id="table-search" placeholder="Filter by age or year…" class="form-input text-sm py-1.5 w-40" aria-label="Filter projection table" />
+            <button id="btn-export-csv" class="btn-ghost text-sm flex items-center gap-1.5" title="Export as CSV">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              CSV
+            </button>
+          </div>
+        </div>
+        <div id="projection-table-wrapper" class="overflow-x-auto mt-2">
+          <!-- Table populated by ProjectionTable.js -->
+          <div class="text-center py-12 text-slate-500">
+            <svg class="w-12 h-12 mx-auto mb-3 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"/></svg>
+            <p class="text-sm">Enter your financial details to generate projections</p>
+          </div>
+        </div>
+        <div class="flex items-center justify-between mt-3 pt-3 border-t border-white/5 text-xs text-slate-500">
+          <span id="table-row-count">0 years of data</span>
+          <div class="flex items-center gap-3">
+            <button id="table-prev-page" class="pagination-btn" disabled aria-label="Previous page">←</button>
+            <span id="table-page-info">Page 1 of 1</span>
+            <button id="table-next-page" class="pagination-btn" aria-label="Next page">→</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: TAX OPTIMIZER
+    ───────────────────────────────────────────────────────── -->
+    <section id="section-tax" class="section-panel hidden p-6 space-y-6">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Tax Optimizer</h1>
+        <p class="text-sm text-slate-400 mt-0.5">FY 2025-26 · Old vs. New Regime comparison under Section 115BAC</p>
+      </div>
+
+      <!-- Tax Inputs Card -->
+      <div class="card">
+        <h2 class="card-title mb-4">Income &amp; Deductions</h2>
+        <div id="tax-inputs-container"></div><!-- Populated by TaxEngine UI -->
+      </div>
+
+      <!-- Recommendation Banner -->
+      <div id="tax-recommendation-banner" class="hidden rounded-xl p-4 border flex items-start gap-4">
+        <div id="tax-banner-icon" class="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <div>
+          <p id="tax-banner-title" class="font-semibold text-white"></p>
+          <p id="tax-banner-desc" class="text-sm text-slate-300 mt-0.5"></p>
+        </div>
+      </div>
+
+      <!-- Side-by-Side Comparison -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- New Regime -->
+        <div id="tax-new-regime-card" class="card border-2 border-transparent">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="card-title">New Tax Regime</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Section 115BAC · Default from FY 2023-24</p>
+            </div>
+            <span id="tax-new-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-300">Standard</span>
+          </div>
+          <div id="tax-new-breakdown" class="space-y-2 text-sm">
+            <!-- Populated by TaxEngine -->
+          </div>
+          <div class="border-t border-white/10 mt-4 pt-4 flex justify-between items-baseline">
+            <span class="text-slate-400">Total Tax Payable</span>
+            <span id="tax-new-total" class="text-2xl font-bold text-white">₹–</span>
+          </div>
+          <div class="flex justify-between items-baseline mt-1">
+            <span class="text-slate-400 text-sm">Effective Rate</span>
+            <span id="tax-new-effective-rate" class="text-sm font-medium text-slate-300">–%</span>
+          </div>
+        </div>
+
+        <!-- Old Regime -->
+        <div id="tax-old-regime-card" class="card border-2 border-transparent">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 class="card-title">Old Tax Regime</h2>
+              <p class="text-xs text-slate-500 mt-0.5">With Chapter VI-A deductions</p>
+            </div>
+            <span id="tax-old-badge" class="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-700 text-slate-300">Standard</span>
+          </div>
+          <div id="tax-old-breakdown" class="space-y-2 text-sm">
+            <!-- Populated by TaxEngine -->
+          </div>
+          <div class="border-t border-white/10 mt-4 pt-4 flex justify-between items-baseline">
+            <span class="text-slate-400">Total Tax Payable</span>
+            <span id="tax-old-total" class="text-2xl font-bold text-white">₹–</span>
+          </div>
+          <div class="flex justify-between items-baseline mt-1">
+            <span class="text-slate-400 text-sm">Effective Rate</span>
+            <span id="tax-old-effective-rate" class="text-sm font-medium text-slate-300">–%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tax Slabs Reference Table -->
+      <div class="card">
+        <h2 class="card-title mb-4">New Regime Slab Reference (FY 2025-26)</h2>
+        <div class="overflow-x-auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Income Slab</th>
+                <th>Tax Rate</th>
+                <th>Max Tax in Slab</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Up to ₹4,00,000</td><td class="text-emerald-400">Nil</td><td>₹0</td><td>Basic exemption limit</td></tr>
+              <tr><td>₹4,00,001 – ₹8,00,000</td><td class="text-brand">5%</td><td>₹20,000</td><td></td></tr>
+              <tr><td>₹8,00,001 – ₹12,00,000</td><td class="text-brand">10%</td><td>₹40,000</td><td>87A rebate if NTI ≤ ₹12L</td></tr>
+              <tr><td>₹12,00,001 – ₹16,00,000</td><td class="text-amber-400">15%</td><td>₹60,000</td><td>Marginal relief applicable</td></tr>
+              <tr><td>₹16,00,001 – ₹20,00,000</td><td class="text-amber-400">20%</td><td>₹80,000</td><td></td></tr>
+              <tr><td>₹20,00,001 – ₹24,00,000</td><td class="text-orange-400">25%</td><td>₹1,00,000</td><td></td></tr>
+              <tr><td>Above ₹24,00,000</td><td class="text-red-400">30%</td><td>No cap</td><td>Maximum marginal rate</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LTCG Tax Harvesting -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h2 class="card-title">LTCG Tax Harvesting Simulator</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Equity LTCG: 12.5% on gains above ₹1,25,000/year · Annual harvesting saves ₹15,625/year</p>
+          </div>
+        </div>
+        <div id="ltcg-harvesting-container" class="mt-4">
+          <!-- Populated by TaxEngine -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: AI ADVISOR
+    ───────────────────────────────────────────────────────── -->
+    <section id="section-ai" class="section-panel hidden p-6 space-y-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-white">AI Financial Advisor</h1>
+          <p class="text-sm text-slate-400 mt-0.5">Powered by Google Gemini · Grounded in your financial data</p>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+          Beta
+        </span>
+      </div>
+
+      <!-- AI Summary Card -->
+      <div id="ai-summary-card" class="card border border-brand/20 bg-brand/5 relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-48 h-48 bg-brand/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl pointer-events-none" aria-hidden="true"></div>
+        <div class="relative">
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-7 h-7 bg-brand/20 rounded-lg flex items-center justify-center">
+              <svg class="w-4 h-4 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <span class="font-semibold text-white text-sm">AI Executive Summary</span>
+          </div>
+          <p id="ai-summary-text" class="text-sm text-slate-300 leading-relaxed">
+            Complete your financial details to receive a personalized AI-generated advisory summary. The AI will analyze your corpus trajectory, tax optimization opportunities, and goal feasibility to provide actionable recommendations.
+          </p>
+          <button id="btn-generate-ai-summary" class="btn-primary text-sm mt-4 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Generate AI Summary
+          </button>
+        </div>
+      </div>
+
+      <!-- AI Chat Interface -->
+      <div class="card flex flex-col" style="height: 480px;">
+        <div class="card-header flex-shrink-0">
+          <h2 class="card-title">Ask Your Financial Advisor</h2>
+          <button id="btn-clear-chat" class="icon-btn text-slate-400" title="Clear chat history" aria-label="Clear chat history">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="ai-chat-messages" class="flex-1 overflow-y-auto py-4 space-y-4 min-h-0">
+          <!-- Welcome message -->
+          <div class="chat-message-ai">
+            <div class="chat-avatar-ai">
+              <svg class="w-3.5 h-3.5 text-brand" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/></svg>
+            </div>
+            <div class="chat-bubble-ai">
+              <p>Namaste! I'm your FinVision AI advisor, powered by Google Gemini. I'm deeply familiar with Indian tax laws, SEBI regulations, and macroeconomic trends. Once you complete your financial details, I can provide personalized guidance on corpus building, tax optimization, and goal planning. What would you like to explore?</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suggested Prompts -->
+        <div id="ai-suggested-prompts" class="flex flex-wrap gap-2 py-2 border-t border-white/5 flex-shrink-0">
+          <button class="suggested-prompt-btn" data-prompt="Am I on track to retire at my target age?">Am I on track to retire?</button>
+          <button class="suggested-prompt-btn" data-prompt="Should I switch to the New Tax Regime this year?">New vs Old Tax Regime?</button>
+          <button class="suggested-prompt-btn" data-prompt="How much monthly SIP do I need to meet all my goals?">Required monthly SIP?</button>
+          <button class="suggested-prompt-btn" data-prompt="Explain LTCG tax harvesting for my portfolio">LTCG harvesting explained</button>
+        </div>
+
+        <!-- Chat Input -->
+        <div class="flex items-center gap-2 pt-2 border-t border-white/5 flex-shrink-0">
+          <input id="ai-chat-input" type="text" class="form-input flex-1 text-sm" placeholder="Ask about your finances, tax planning, or investment strategy…" autocomplete="off" maxlength="500" />
+          <button id="btn-send-ai" class="btn-primary px-4 py-2 flex items-center gap-1.5" aria-label="Send message">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+            Send
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────
+         SECTION: REPORTS
+    ───────────────────────────────────────────────────────── -->
+    <section id="section-reports" class="section-panel hidden p-6 space-y-6">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Reports &amp; Export</h1>
+        <p class="text-sm text-slate-400 mt-0.5">Download your complete financial plan as a professional PDF dossier</p>
+      </div>
+
+      <!-- Report Config Card -->
+      <div class="card">
+        <h2 class="card-title mb-4">Report Configuration</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div class="form-group">
+              <label class="form-label">Report Title</label>
+              <input id="report-title" type="text" class="form-input" value="FinVision AI — Financial Plan" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Prepared For</label>
+              <input id="report-name" type="text" class="form-input" placeholder="Your name" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Plan Date</label>
+              <input id="report-date" type="date" class="form-input" />
+            </div>
+          </div>
+          <div class="space-y-3">
+            <p class="form-label">Sections to Include</p>
+            <div class="space-y-2">
+              <label class="checkbox-label"><input type="checkbox" checked class="checkbox-input" name="include-summary" /> Executive AI Summary</label>
+              <label class="checkbox-label"><input type="checkbox" checked class="checkbox-input" name="include-tax" /> Tax Regime Comparison</label>
+              <label class="checkbox-label"><input type="checkbox" checked class="checkbox-input" name="include-charts" /> Wealth Accumulation Charts</label>
+              <label class="checkbox-label"><input type="checkbox" checked class="checkbox-input" name="include-table" /> Year-by-Year Data Table</label>
+              <label class="checkbox-label"><input type="checkbox" checked class="checkbox-input" name="include-goals" /> Life Goals Breakdown</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button id="btn-download-pdf" class="btn-primary flex items-center gap-2 justify-center">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          Download PDF Report
+        </button>
+        <button id="btn-save-cloud" class="btn-ghost flex items-center gap-2 justify-center">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+          Save to Cloud
+        </button>
+      </div>
+
+      <!-- Report Preview Placeholder -->
+      <div class="card">
+        <h2 class="card-title mb-4">Report Preview</h2>
+        <div id="report-preview-container" class="bg-surface-3 rounded-xl border-2 border-dashed border-white/10 p-12 text-center">
+          <svg class="w-16 h-16 mx-auto mb-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+          <p class="text-slate-400 font-medium">PDF preview will appear here</p>
+          <p class="text-slate-500 text-sm mt-1">Complete your financial details to generate a preview</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       GLOBAL TOAST NOTIFICATIONS
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none" aria-live="polite" aria-label="Notifications"></div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RECALCULATION LOADING INDICATOR
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="recalc-indicator" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none hidden">
+    <div class="flex items-center gap-2 bg-surface-2 border border-white/10 rounded-full px-4 py-2 shadow-xl text-xs text-slate-300">
+      <svg class="w-3.5 h-3.5 text-brand animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Recalculating…
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       ENTRY POINT
+  ═══════════════════════════════════════════════════════════ -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
