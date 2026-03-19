@@ -26,8 +26,9 @@ import { mountExpensesForm }        from './components/forms/ExpensesForm.js';
 import { mountGoalsForm }           from './components/forms/GoalsForm.js';
 import { generateExecutiveSummary, sendChatMessage } from './ai/aiAdvisor.js';
 import { generatePDFReport }       from './components/reports/PDFExport.js';
-import { onAuthStateChanged, signInWithGoogle, signInWithEmail, createAccount, signOut as fbSignOut } from './firebase/auth.js';
+import { onAuthStateChanged, signInWithGoogle, signInWithEmail, createAccount, signOut as fbSignOut, sendPasswordReset } from './firebase/auth.js';
 import { isFirebaseConfigured }    from './firebase/config.js';
+import { savePersonalDetails, loadPersonalDetails, savePlan, loadAllPlans, saveAISummary, loadAISummary } from './firebase/firestore.js';
 
 /* ═════════════════════════════════════════════════════════════
    GLOBAL APPLICATION STATE
@@ -552,7 +553,7 @@ function setText(id, text) {
    AUTH STATE HANDLER
 ═════════════════════════════════════════════════════════════ */
 
-function handleAuthStateChange(user) {
+async function handleAuthStateChange(user) {
   const guestArea = document.getElementById('auth-guest-area');
   const userArea  = document.getElementById('auth-user-area');
   const saveBtn   = document.getElementById('btn-save-scenario');
@@ -571,6 +572,29 @@ function handleAuthStateChange(user) {
 
     closeAuthModal();
     showToast(`Welcome back, ${state.userName}!`, 'success');
+
+    // Load previously saved plan data from Firestore
+    try {
+      const details = await loadPersonalDetails(user.uid);
+      if (details) {
+        // Restore state fields from saved profile (excluding uid/computed fields)
+        const { updatedAt, ...saved } = details;
+        Object.assign(state, saved);
+        recalculate();
+        showToast('Your saved plan has been loaded.', 'success');
+      }
+    } catch (err) {
+      console.warn('[Firestore] Could not load plan:', err.message);
+    }
+
+    // Load cached AI summary
+    try {
+      const cachedSummary = await loadAISummary(user.uid);
+      if (cachedSummary) {
+        const el = document.getElementById('ai-summary-text');
+        if (el) el.textContent = cachedSummary;
+      }
+    } catch { /* non-critical */ }
   } else {
     state.uid       = null;
     state.userName  = 'Investor';
@@ -853,8 +877,18 @@ function bindEvents() {
   });
 
   // Forgot password
-  document.getElementById('btn-forgot-password')?.addEventListener('click', () => {
-    showToast('Password reset available after Firebase Auth setup (Phase 5)', 'info');
+  document.getElementById('btn-forgot-password')?.addEventListener('click', async () => {
+    const email = document.getElementById('signin-email')?.value.trim();
+    if (!email) {
+      showToast('Enter your email address above, then click Forgot Password.', 'info');
+      return;
+    }
+    try {
+      await sendPasswordReset(email);
+      showToast(`Password reset email sent to ${email}`, 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
   });
 
   // Password show/hide toggles
@@ -970,6 +1004,10 @@ function bindEvents() {
     try {
       const summary = await generateExecutiveSummary(state);
       textEl.textContent = summary;
+      // Cache to Firestore if signed in
+      if (state.uid) {
+        saveAISummary(state.uid, summary).catch(() => {});
+      }
     } catch (err) {
       textEl.textContent = 'Failed to generate summary. Please ensure Firebase AI is configured.';
     } finally {
@@ -979,22 +1017,50 @@ function bindEvents() {
   });
 
   // ── Save scenario ──────────────────────────────────────────
-  document.getElementById('btn-save-scenario')?.addEventListener('click', () => {
+  document.getElementById('btn-save-scenario')?.addEventListener('click', async () => {
     if (!state.uid) {
       showToast('Sign in to save your scenario to the cloud', 'info');
       openAuthModal();
       return;
     }
-    showToast('Scenario saved! (Full Firestore sync in Phase 5)', 'success');
+    try {
+      await savePersonalDetails(state.uid, {
+        name: state.name, dob: state.dob, currentAge: state.currentAge,
+        retirementAge: state.retirementAge, monthlyIncome: state.monthlyIncome,
+        salaryRaiseRate: state.salaryRaiseRate, equityPercent: state.equityPercent,
+        debtPercent: state.debtPercent, currentEquity: state.currentEquity,
+        currentDebt: state.currentDebt, currentEPF: state.currentEPF,
+        monthlyExpenses: state.monthlyExpenses, monthlyMedicalPremium: state.monthlyMedicalPremium,
+        monthlyEMI: state.monthlyEMI, goals: state.goals, taxInputs: state.taxInputs,
+      });
+      showToast('Scenario saved to cloud ✓', 'success');
+    } catch (err) {
+      showToast(`Save failed: ${err.message}`, 'error');
+    }
   });
 
-  document.getElementById('btn-save-cloud')?.addEventListener('click', () => {
+  document.getElementById('btn-save-cloud')?.addEventListener('click', async () => {
     if (!state.uid) {
       showToast('Sign in to save to the cloud', 'info');
       openAuthModal();
       return;
     }
-    showToast('Cloud save available fully in Phase 5', 'info');
+    try {
+      const planId = state.activePlanId ?? crypto.randomUUID();
+      state.activePlanId = planId;
+      await savePlan(state.uid, planId, {
+        name: state.name, monthlyIncome: state.monthlyIncome,
+        equityPercent: state.equityPercent, debtPercent: state.debtPercent,
+        currentEquity: state.currentEquity, currentDebt: state.currentDebt,
+        currentEPF: state.currentEPF, monthlyExpenses: state.monthlyExpenses,
+        monthlyMedicalPremium: state.monthlyMedicalPremium, monthlyEMI: state.monthlyEMI,
+        retirementAge: state.retirementAge, goals: state.goals,
+        taxInputs: state.taxInputs, planHealth: state.planHealth,
+      });
+      showToast('Plan saved to cloud ✓', 'success');
+    } catch (err) {
+      showToast(`Save failed: ${err.message}`, 'error');
+    }
   });
 
   // ── Report date default ────────────────────────────────────

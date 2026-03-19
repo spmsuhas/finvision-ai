@@ -5,7 +5,16 @@
  * Supports: Google OAuth, Email/Password.
  */
 
-// Phase 5 — full implementation.
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  updateProfile,
+  sendPasswordResetEmail,
+  signOut as firebaseSignOut,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+} from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './config.js';
 
 /**
@@ -17,8 +26,9 @@ export async function signInWithGoogle() {
     console.warn('[Auth] Firebase not configured. Skipping Google sign-in.');
     return null;
   }
-  // Phase 5 — GoogleAuthProvider + signInWithPopup
-  return null;
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  return signInWithPopup(auth, provider);
 }
 
 /**
@@ -29,8 +39,7 @@ export async function signInWithGoogle() {
  */
 export async function signInWithEmail(email, password) {
   if (!isFirebaseConfigured || !auth) return null;
-  // Phase 5 — signInWithEmailAndPassword
-  return null;
+  return signInWithEmailAndPassword(auth, email, password);
 }
 
 /**
@@ -42,8 +51,11 @@ export async function signInWithEmail(email, password) {
  */
 export async function createAccount(email, password, displayName) {
   if (!isFirebaseConfigured || !auth) return null;
-  // Phase 5 — createUserWithEmailAndPassword + updateProfile
-  return null;
+  const credential = await createUserWithEmailAndPassword(auth, email, password);
+  if (displayName && credential.user) {
+    await updateProfile(credential.user, { displayName });
+  }
+  return credential;
 }
 
 /**
@@ -52,13 +64,13 @@ export async function createAccount(email, password, displayName) {
  */
 export async function sendPasswordReset(email) {
   if (!isFirebaseConfigured || !auth) return;
-  // Phase 5 — sendPasswordResetEmail
+  return sendPasswordResetEmail(auth, email);
 }
 
 /** Sign out the current user. */
 export async function signOut() {
   if (!isFirebaseConfigured || !auth) return;
-  // Phase 5 — signOut(auth)
+  return firebaseSignOut(auth);
 }
 
 /**
@@ -71,7 +83,7 @@ export function onAuthStateChanged(callback) {
     callback(null);
     return () => {};
   }
-  // Phase 5 — onAuthStateChanged(auth, callback)
-  callback(null);
-  return () => {};
+  return firebaseOnAuthStateChanged(auth, callback);
 }
+
+

@@ -8,95 +8,84 @@
  *     AI_Summaries      (sub-collection, cached Gemini responses)
  *
  * All read/write operations require an authenticated UID.
- * Firestore Security Rules (defined in firestore.rules) enforce
- * strict per-user isolation: only the document owner can access it.
+ * Firestore Security Rules (firestore.rules) enforce per-user isolation.
  */
 
+import {
+  doc, getDoc, setDoc, getDocs, deleteDoc,
+  collection, serverTimestamp, onSnapshot,
+} from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './config.js';
 import { FIRESTORE } from '@/utils/constants.js';
 
-/* ─────────────────────────────────────────────────────────────
-   HELPER — validate authenticated UID before any operation
-───────────────────────────────────────────────────────────── */
 function _requireUID(uid) {
   if (!uid) throw new Error('Authentication required. Please sign in.');
   if (!isFirebaseConfigured || !db) throw new Error('Firebase not configured.');
 }
 
-/* ─────────────────────────────────────────────────────────────
-   PERSONAL DETAILS
-───────────────────────────────────────────────────────────── */
+/* ─── PERSONAL DETAILS ────────────────────────────────────────── */
 
-/**
- * Save the user's personal details to Firestore.
- * @param {string} uid
- * @param {Object} details
- */
 export async function savePersonalDetails(uid, details) {
   _requireUID(uid);
-  // Phase 5 — setDoc(doc(db, FIRESTORE.USERS, uid, FIRESTORE.PERSONAL_DETAILS, 'profile'), details, { merge: true })
+  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.PERSONAL_DETAILS, 'profile');
+  await setDoc(ref, { ...details, updatedAt: serverTimestamp() }, { merge: true });
 }
 
-/**
- * Load the user's personal details from Firestore.
- * @param {string} uid
- * @returns {Promise<Object|null>}
- */
 export async function loadPersonalDetails(uid) {
   _requireUID(uid);
-  // Phase 5 — getDoc
-  return null;
+  const ref  = doc(db, FIRESTORE.USERS, uid, FIRESTORE.PERSONAL_DETAILS, 'profile');
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data() : null;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   FINANCIAL PLANS / SCENARIOS
-───────────────────────────────────────────────────────────── */
+/* ─── FINANCIAL PLANS / SCENARIOS ───────────────────────────────── */
 
-/**
- * Save a financial plan scenario.
- * @param {string} uid
- * @param {string} planId  - Use crypto.randomUUID() for new plans
- * @param {Object} planData
- */
 export async function savePlan(uid, planId, planData) {
   _requireUID(uid);
-  // Phase 5 — setDoc with serverTimestamp()
+  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS, planId);
+  await setDoc(ref, {
+    ...planData,
+    planId,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }
 
-/**
- * Load all saved plans for the user.
- * @param {string} uid
- * @returns {Promise<Array>}
- */
 export async function loadAllPlans(uid) {
   _requireUID(uid);
-  // Phase 5 — getDocs(collection(...))
-  return [];
+  const col  = collection(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS);
+  const snap = await getDocs(col);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-/**
- * Delete a saved plan.
- * @param {string} uid
- * @param {string} planId
- */
 export async function deletePlan(uid, planId) {
   _requireUID(uid);
-  // Phase 5 — deleteDoc
+  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS, planId);
+  await deleteDoc(ref);
 }
 
-/* ─────────────────────────────────────────────────────────────
-   REAL-TIME SYNC (Firestore listener)
-───────────────────────────────────────────────────────────── */
+/* ─── AI SUMMARIES ──────────────────────────────────────────────── */
 
-/**
- * Subscribe to real-time updates on a specific plan document.
- * @param {string} uid
- * @param {string} planId
- * @param {Function} onUpdate  - Callback with latest plan data
- * @returns {Function} Unsubscribe function
- */
+export async function saveAISummary(uid, summary) {
+  _requireUID(uid);
+  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.AI_SUMMARIES, 'latest');
+  await setDoc(ref, { summary, generatedAt: serverTimestamp() });
+}
+
+export async function loadAISummary(uid) {
+  if (!uid || !isFirebaseConfigured || !db) return null;
+  const ref  = doc(db, FIRESTORE.USERS, uid, FIRESTORE.AI_SUMMARIES, 'latest');
+  const snap = await getDoc(ref);
+  return snap.exists() ? snap.data().summary : null;
+}
+
+/* ─── REAL-TIME SYNC ────────────────────────────────────────────── */
+
 export function subscribeToPlan(uid, planId, onUpdate) {
   if (!isFirebaseConfigured || !db || !uid) return () => {};
-  // Phase 5 — onSnapshot(doc(db, ...), callback)
-  return () => {};
+  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS, planId);
+  return onSnapshot(ref, snap => {
+    if (snap.exists()) onUpdate(snap.data());
+  });
 }
+
+
