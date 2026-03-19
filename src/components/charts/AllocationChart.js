@@ -19,7 +19,6 @@ let _allocationChart = null;
  * @param {number} debtPct     - 0 to 100
  */
 export function renderAllocationChart(canvasId, equityPct, debtPct) {
-  // Phase 4 — full Chart.js implementation
   const canvas = document.getElementById(canvasId);
   if (!canvas) return null;
 
@@ -48,8 +47,25 @@ export function renderAllocationChart(canvasId, equityPct, debtPct) {
       maintainAspectRatio: false,
       cutout:              '72%',
       plugins: {
-        legend:  { display: false },
-        tooltip: { enabled: false }, // Custom tooltip in Phase 4
+        legend: {
+          display:  true,
+          position: 'bottom',
+          labels:   { color: '#94A3B8', boxWidth: 12, font: { size: 11 } },
+        },
+        tooltip: {
+          backgroundColor: '#1E293B',
+          titleColor:      '#F8FAFC',
+          bodyColor:       '#94A3B8',
+          borderColor:     'rgba(255,255,255,0.1)',
+          borderWidth:     1,
+          callbacks: {
+            label: item => {
+              const val = item.raw;
+              const cagr = item.dataIndex === 0 ? 13.0 : 6.0;
+              return ` ${item.label}: ${val}%  (${cagr}% CAGR)`;
+            },
+          },
+        },
       },
       animation: { animateRotate: true, duration: 600 },
     },
