@@ -55,6 +55,15 @@ const state = {
   monthlyExpenses:       DEFAULTS.MONTHLY_EXPENSES,
   monthlyMedicalPremium: 2000,
   monthlyEMI:            0,
+  expenseCategories: [
+    { id: 'home',          label: 'Home / Rent',       amount: 25000 },
+    { id: 'food',          label: 'Food & Groceries',  amount: 15000 },
+    { id: 'vehicle',       label: 'Vehicle',            amount: 5000  },
+    { id: 'utilities',     label: 'Utilities',          amount: 5000  },
+    { id: 'education',     label: 'Education / Fees',   amount: 0     },
+    { id: 'entertainment', label: 'Entertainment',      amount: 5000  },
+    { id: 'others',        label: 'Others',             amount: 5000  },
+  ],
 
   // Portfolio / Assets
   equityPercent:   DEFAULTS.EQUITY_PERCENT,
@@ -608,6 +617,8 @@ async function handleAuthStateChange(user) {
     guestArea?.classList.remove('hidden');
     userArea?.classList.add('hidden');
     saveBtn?.classList.add('hidden');
+
+    openAuthModal();
   }
 }
 
