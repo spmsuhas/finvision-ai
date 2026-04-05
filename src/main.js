@@ -72,8 +72,8 @@ const state = {
   currentDebt:     DEFAULTS.CURRENT_DEBT,
   currentEPF:      DEFAULTS.CURRENT_EPF,
   assetAllocation: {
-    debt:   { savingsBank: 25000, fixedDeposit: 50000, postOffice: 0, companyFD: 0, epf: DEFAULTS.CURRENT_EPF, superannuation: 0, otherDebt: 25000, otherDebtRemarks: '' },
-    equity: { directEquity: 300000, pms: 0, mutualFunds: 200000, gratuity: 0, otherEquity: 100000, otherEquityRemarks: '' },
+    debt:   { savingsBank: 25000, fixedDeposit: 50000, recurringDeposit: 0, ppf: 0, epf: DEFAULTS.CURRENT_EPF, nscKvp: 0, scss: 0, debtMutualFunds: 0, govtBonds: 0, companyFD: 0, npsDebt: 0, otherDebt: 25000, otherDebtRemarks: '' },
+    equity: { directEquity: 300000, equityMutualFunds: 200000, npsEquity: 0, pms: 0, aif: 0, ulipEquity: 0, esopRsu: 0, gratuity: 0, superannuation: 0, otherEquity: 100000, otherEquityRemarks: '' },
   },
 
   // Tax inputs

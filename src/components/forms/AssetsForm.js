@@ -9,21 +9,31 @@ import { formatRupee } from '@/utils/formatters.js';
 
 /* ── asset sub-category definitions ────────────────────────── */
 const DEBT_ITEMS = [
-  { key: 'savingsBank',    label: 'Savings Bank' },
-  { key: 'fixedDeposit',   label: 'Fixed Deposit' },
-  { key: 'postOffice',     label: 'Post Office Savings (NSC, PPF etc.)' },
-  { key: 'companyFD',      label: 'Company FDs' },
-  { key: 'epf',            label: 'EPF (Employee Provident Fund)' },
-  { key: 'superannuation', label: 'Superannuation' },
-  { key: 'otherDebt',      label: 'Other Debt', hasRemarks: true },
+  { key: 'savingsBank',      label: 'Savings Bank Account',          info: 'Regular savings accounts in any scheduled bank. Typically earns 2.5–4% p.a. Highly liquid.' },
+  { key: 'fixedDeposit',     label: 'Bank Fixed Deposits',           info: 'Term deposits with banks. Lock-in varies from 7 days to 10 years. Earns 5–7.5% p.a. Tax-saver FD has 5-yr lock-in under Sec 80C.' },
+  { key: 'recurringDeposit', label: 'Recurring Deposits',            info: 'Monthly fixed instalment deposits with banks/post office. Good for disciplined saving. Interest similar to FDs.' },
+  { key: 'ppf',              label: 'PPF (Public Provident Fund)',    info: 'Government-backed 15-year scheme with EEE tax status. Current rate ~7.1% p.a. Max ₹1.5L/year. Best long-term debt instrument.' },
+  { key: 'epf',              label: 'EPF / VPF',                     info: 'Employee Provident Fund (12% of basic) + Voluntary PF. Earns ~8.25% p.a. EEE tax status. VPF allows extra contribution up to 100% of basic.' },
+  { key: 'nscKvp',           label: 'NSC / KVP',                     info: 'National Savings Certificate (5-yr, ~7.7%) and Kisan Vikas Patra (doubles in ~115 months). Post office small savings instruments.' },
+  { key: 'scss',             label: 'SCSS / POMIS',                   info: 'Senior Citizens Savings Scheme (~8.2%, 5-yr, age 60+) and Post Office Monthly Income Scheme (~7.4%). Regular income instruments.' },
+  { key: 'debtMutualFunds',  label: 'Debt Mutual Funds',             info: 'SEBI-classified debt MF schemes — liquid, overnight, short/medium/long duration, gilt, corporate bond, etc. Taxed as per slab since Apr 2023.' },
+  { key: 'govtBonds',        label: 'Govt Bonds / RBI Bonds / SGBs', info: 'Sovereign Gold Bonds, RBI Floating Rate Bonds (7.15%), State Development Loans. Government-backed, virtually zero credit risk.' },
+  { key: 'companyFD',        label: 'Corporate / Company FDs',        info: 'Fixed deposits with NBFCs or corporates. Higher returns (7–9%) but carry credit risk. Not covered by DICGC insurance.' },
+  { key: 'npsDebt',          label: 'NPS — Debt Allocation',          info: 'National Pension System Tier-I debt component (Corporate bonds + Govt securities). Extra ₹50K deduction under Sec 80CCD(1B).' },
+  { key: 'otherDebt',        label: 'Other Debt',                     info: 'Any other fixed-income holdings: money-back policies, endowment plans, bonds, debentures, etc.', hasRemarks: true },
 ];
 
 const EQUITY_ITEMS = [
-  { key: 'directEquity', label: 'Direct Equity (in DMAT)' },
-  { key: 'pms',          label: 'Portfolio Management Services (PMS)' },
-  { key: 'mutualFunds',  label: 'Mutual Funds' },
-  { key: 'gratuity',     label: 'Gratuity' },
-  { key: 'otherEquity',  label: 'Other Equity', hasRemarks: true },
+  { key: 'directEquity',      label: 'Direct Equity (Demat)',               info: 'Listed shares held in your Demat account. Returns depend on stock selection. LTCG >₹1.25L taxed at 12.5% (holding >1 yr).' },
+  { key: 'equityMutualFunds', label: 'Equity Mutual Funds (incl. ELSS)',    info: 'SEBI equity MF schemes — large/mid/small/multi-cap, flexi-cap, sectoral, ELSS (3-yr lock-in, Sec 80C). Most popular equity vehicle.' },
+  { key: 'npsEquity',         label: 'NPS — Equity Allocation',             info: 'National Pension System Tier-I equity component (up to 75% in Active Choice). Low-cost, long-term retirement instrument.' },
+  { key: 'pms',               label: 'PMS (Portfolio Mgmt Services)',       info: 'SEBI-registered portfolio management. Min investment ₹50 lakh. Professional stock-picking with customised portfolios.' },
+  { key: 'aif',               label: 'AIF (Alternative Investment Funds)',   info: 'SEBI Category I/II/III funds — venture capital, PE, hedge funds. Min ₹1 crore. Sophisticated, illiquid investments.' },
+  { key: 'ulipEquity',        label: 'ULIP — Equity Portion',               info: 'Unit Linked Insurance Plans\' equity component. Combines insurance + investment. 5-yr lock-in. Tax-free maturity under Sec 10(10D).' },
+  { key: 'esopRsu',           label: 'ESOPs / RSUs',                        info: 'Employee Stock Options and Restricted Stock Units granted by employer. Taxed at exercise (perquisite) + sale (capital gains).' },
+  { key: 'gratuity',          label: 'Gratuity',                            info: 'Statutory payment after 5+ years of service. Tax-exempt up to ₹20 lakh. Formula: Last salary × 15/26 × years of service.' },
+  { key: 'superannuation',    label: 'Superannuation / Pension Funds',      info: 'Employer-sponsored pension/retirement funds. Typically invested in balanced or equity-oriented strategies.' },
+  { key: 'otherEquity',       label: 'Other Equity',                        info: 'Any other equity holdings: unlisted shares, REITs, InvITs, foreign equities, crypto, etc.', hasRemarks: true },
 ];
 
 export function mountAssetsForm(container, state, onUpdate) {
@@ -73,21 +83,48 @@ export function mountAssetsForm(container, state, onUpdate) {
     if (q('#sum-blended'))       q('#sum-blended').textContent       = `${(blended * 100).toFixed(1)}%`;
   }
 
+  function esc(s) { return s.replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
+
+  /** Format number with Indian comma system (e.g. 12,34,567) */
+  function indianFormat(n) {
+    if (!n) return '';
+    const s = Math.floor(n).toString();
+    if (s.length <= 3) return s;
+    const last3 = s.slice(-3);
+    const rest  = s.slice(0, -3);
+    return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
+  }
+
+  /** Parse Indian-formatted string back to number */
+  function parseIndian(str) {
+    return parseInt(str.replace(/,/g, ''), 10) || 0;
+  }
+
   function buildRows(items, group) {
     return items.map(it => `
-      <div class="flex flex-col gap-1.5 py-2.5 border-b border-white/5 last:border-0">
-        <div class="flex items-center gap-3">
-          <label class="flex-1 text-sm text-slate-200" for="inp-${group}-${it.key}">${it.label}</label>
-          <div class="form-input-prefix-group w-44 flex-shrink-0">
+      <div class="py-2 border-b border-white/5 last:border-0">
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="asset-info-wrap" aria-label="Info: ${it.label}">
+              <svg class="asset-info-icon" fill="none" viewBox="0 0 20 20"
+                stroke="currentColor" stroke-width="1.8">
+                <circle cx="10" cy="10" r="8.5"/>
+                <path d="M10 9v4M10 7h.01" stroke-linecap="round"/>
+              </svg>
+              <span class="asset-info-bubble">${esc(it.info || '')}</span>
+            </span>
+            <label class="text-[13px] text-slate-300 leading-snug" for="inp-${group}-${it.key}">${it.label}</label>
+          </div>
+          <div class="form-input-prefix-group w-32 flex-shrink-0">
             <span class="form-input-prefix text-xs">₹</span>
-            <input id="inp-${group}-${it.key}" type="number" min="0" step="1000"
-              class="form-input text-sm py-1.5" value="${val(group, it.key)}"
+            <input id="inp-${group}-${it.key}" type="text" inputmode="numeric"
+              class="form-input text-sm py-1" value="${indianFormat(val(group, it.key))}"
               data-group="${group}" data-key="${it.key}" placeholder="0" />
           </div>
         </div>
         ${it.hasRemarks ? `
         <input type="text" maxlength="60" placeholder="Remarks (optional)"
-          class="form-input text-xs py-1 ml-0 mt-0.5 text-slate-400"
+          class="form-input text-xs py-1 ml-0 mt-1 text-slate-400"
           value="${remarks(group, it.key)}"
           data-group="${group}" data-remark="${it.key}Remarks" />
         ` : ''}
@@ -105,37 +142,48 @@ export function mountAssetsForm(container, state, onUpdate) {
 
   /* ── render ──────────────────────────────────────────────── */
   container.innerHTML = `
-    <div class="space-y-4">
+    <div class="max-w-5xl mx-auto space-y-5">
 
-      <!-- ── Debt Assets ─────────────────────────────────── -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="card-title flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>
-            Debt Assets
-          </h2>
-          <span id="badge-debt" class="text-sm font-semibold text-blue-400">${formatRupee(initDebt)}</span>
-        </div>
-        <p class="text-xs text-slate-500 mb-2">Low-risk, fixed-income instruments</p>
-        <div id="rows-debt">${buildRows(DEBT_ITEMS, 'debt')}</div>
+      <!-- ── Balance Sheet Header ────────────────────────── -->
+      <div class="text-center mb-2">
+        <h2 class="text-lg font-bold text-white tracking-wide">Net Worth Statement</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Enter current value of each holding in ₹</p>
       </div>
 
-      <!-- ── Equity Assets ───────────────────────────────── -->
-      <div class="card">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="card-title flex items-center gap-2">
-            <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
-            Equity Assets
-          </h2>
-          <span id="badge-equity" class="text-sm font-semibold text-brand">${formatRupee(initEquity)}</span>
+      <!-- ── Two-column: Debt | Equity ───────────────────── -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <!-- Debt Column -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="card-title flex items-center gap-2 text-base">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>
+              Debt Assets
+            </h2>
+            <span id="badge-debt" class="text-sm font-semibold text-blue-400">${formatRupee(initDebt)}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mb-2">Low-risk, fixed-income instruments</p>
+          <div id="rows-debt">${buildRows(DEBT_ITEMS, 'debt')}</div>
         </div>
-        <p class="text-xs text-slate-500 mb-2">Market-linked, higher-growth instruments</p>
-        <div id="rows-equity">${buildRows(EQUITY_ITEMS, 'equity')}</div>
+
+        <!-- Equity Column -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-3">
+            <h2 class="card-title flex items-center gap-2 text-base">
+              <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
+              Equity Assets
+            </h2>
+            <span id="badge-equity" class="text-sm font-semibold text-brand">${formatRupee(initEquity)}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mb-2">Market-linked, higher-growth instruments</p>
+          <div id="rows-equity">${buildRows(EQUITY_ITEMS, 'equity')}</div>
+        </div>
+
       </div>
 
-      <!-- ── Portfolio Summary ────────────────────────────── -->
-      <div class="card bg-surface-3">
-        <h2 class="card-title mb-3">Portfolio Summary</h2>
+      <!-- ── Portfolio Summary (centered footer) ─────────── -->
+      <div class="card bg-surface-3 max-w-2xl mx-auto">
+        <h2 class="card-title mb-3 text-center text-base">Portfolio Summary</h2>
         <div class="space-y-2">
           <div class="flex justify-between text-sm">
             <span class="text-slate-400">Total Debt</span>
@@ -175,8 +223,11 @@ export function mountAssetsForm(container, state, onUpdate) {
 
     // Amount input
     if (group && key) {
+      // Strip non-digits, parse, store
+      const raw = e.target.value.replace(/[^\d]/g, '');
+      const num = parseInt(raw, 10) || 0;
       aa[group] = aa[group] || {};
-      aa[group][key] = parseFloat(e.target.value) || 0;
+      aa[group][key] = num;
 
       // Update group badge
       const items    = group === 'debt' ? DEBT_ITEMS : EQUITY_ITEMS;
@@ -198,4 +249,21 @@ export function mountAssetsForm(container, state, onUpdate) {
       onUpdate('assetAllocation', { ...aa });
     }
   });
+
+  // Format with Indian commas on blur, show raw number on focus
+  container.addEventListener('focus', (e) => {
+    const { group, key } = e.target.dataset;
+    if (group && key) {
+      const num = aa[group]?.[key] || 0;
+      e.target.value = num || '';
+    }
+  }, true);
+  container.addEventListener('blur', (e) => {
+    const { group, key } = e.target.dataset;
+    if (group && key) {
+      const num = aa[group]?.[key] || 0;
+      e.target.value = indianFormat(num);
+    }
+  }, true);
+
 }

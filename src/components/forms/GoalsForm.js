@@ -1,11 +1,26 @@
 /**
  * FinVision AI — Life Goals Input Form (Phase 3)
- * Stub: add/edit/delete goal cards with type, year, and today-value fields.
+ * Add/edit/delete goal cards with type, year, and today-value fields.
  */
 import { GOAL_TYPES } from '@/utils/constants.js';
 import { formatRupee } from '@/utils/formatters.js';
 
 const GOAL_ICONS = { EDUCATION: '🎓', MARRIAGE: '💍', PROPERTY: '🏠', VEHICLE: '🚗', TRAVEL: '✈️', RETIREMENT: '🏖️', OTHER: '🎯' };
+
+/** Format number with Indian comma system (e.g. 12,34,567) */
+function indianFormat(n) {
+  if (!n) return '';
+  const s = Math.floor(n).toString();
+  if (s.length <= 3) return s;
+  const last3 = s.slice(-3);
+  const rest  = s.slice(0, -3);
+  return rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3;
+}
+
+/** Parse Indian-formatted string back to number */
+function parseIndian(str) {
+  return parseInt(String(str).replace(/[^\d]/g, ''), 10) || 0;
+}
 
 function renderGoalCards(container, goals, planStartYear, onUpdate) {
   const listEl = container.querySelector('#goals-list');
@@ -52,61 +67,91 @@ export function mountGoalsForm(container, state, onUpdate) {
   const currentYear = state.planStartYear ?? new Date().getFullYear();
 
   container.innerHTML = `
-    <div class="card">
-      <h2 class="card-title mb-4">Add a Life Goal</h2>
-      <form id="goal-add-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="max-w-5xl mx-auto space-y-5">
 
-        <div class="form-group">
-          <label for="goal-name" class="form-label">Goal Name</label>
-          <input id="goal-name" type="text" class="form-input" required maxlength="60"
-            placeholder="e.g. Daughter's Engineering Degree" />
-        </div>
-
-        <div class="form-group">
-          <label for="goal-type" class="form-label">Goal Type</label>
-          <select id="goal-type" class="form-input">
-            ${Object.entries(GOAL_TYPES).map(([k, v]) =>
-              `<option value="${k}">${v.icon ?? ''} ${v.label}</option>`
-            ).join('')}
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="goal-year" class="form-label">Target Year</label>
-          <input id="goal-year" type="number" class="form-input" required
-            min="${currentYear + 1}" max="${currentYear + 70}" step="1"
-            placeholder="${currentYear + 10}" />
-        </div>
-
-        <div class="form-group">
-          <label for="goal-value" class="form-label">Cost in Today's Rupees</label>
-          <div class="form-input-prefix-group">
-            <span class="form-input-prefix">₹</span>
-            <input id="goal-value" type="number" class="form-input" required min="0" step="50000"
-              placeholder="2000000" />
-          </div>
-          <p class="form-hint">Enter today's value — inflation is auto-applied</p>
-        </div>
-
-        <div class="md:col-span-2 flex justify-end">
-          <button type="submit" class="btn-primary flex items-center gap-2">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Add Goal
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <h2 class="card-title">Your Goals <span id="goals-count-badge" class="text-sm text-slate-400 font-normal">(${state.goals?.length ?? 0})</span></h2>
+      <div class="text-center mb-2">
+        <h2 class="text-lg font-bold text-white tracking-wide">Life Goals</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Plan major milestones — inflation is auto-applied to future values</p>
       </div>
-      <div id="goals-list" class="space-y-3 mt-3"></div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+        <!-- Add Goal Form Card -->
+        <div class="card">
+          <h3 class="card-title flex items-center gap-2 text-base mb-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
+            Add a Goal
+          </h3>
+          <form id="goal-add-form" class="space-y-3">
+
+            <div class="form-group">
+              <label for="goal-name" class="form-label">Goal Name</label>
+              <input id="goal-name" type="text" class="form-input" required maxlength="60"
+                placeholder="e.g. Daughter's Engineering Degree" />
+            </div>
+
+            <div class="form-group">
+              <label for="goal-type" class="form-label">Goal Type</label>
+              <select id="goal-type" class="form-input">
+                ${Object.entries(GOAL_TYPES).map(([k, v]) =>
+                  `<option value="${k}">${v.icon ?? ''} ${v.label}</option>`
+                ).join('')}
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="goal-year" class="form-label">Target Year</label>
+              <input id="goal-year" type="text" inputmode="numeric" class="form-input" required
+                placeholder="${currentYear + 10}" />
+            </div>
+
+            <div class="form-group">
+              <label for="goal-value" class="form-label">Cost in Today's Rupees</label>
+              <div class="form-input-prefix-group">
+                <span class="form-input-prefix">₹</span>
+                <input id="goal-value" type="text" inputmode="numeric" class="form-input" required
+                  placeholder="20,00,000" data-rupee="goalValue" />
+              </div>
+              <p class="form-hint">Enter today's value — inflation is auto-applied</p>
+            </div>
+
+            <div class="flex justify-end">
+              <button type="submit" class="btn-primary flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Add Goal
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Goals List Card -->
+        <div class="card">
+          <h3 class="card-title flex items-center gap-2 text-base mb-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+            Your Goals <span id="goals-count-badge" class="text-sm text-slate-400 font-normal">(${state.goals?.length ?? 0})</span>
+          </h3>
+          <div id="goals-list" class="space-y-3"></div>
+        </div>
+
+      </div>
     </div>
   `;
 
   // Initial render
   renderGoalCards(container, state.goals ?? [], currentYear, onUpdate);
+
+  /* ── Indian comma formatting for rupee input ──────────── */
+  const goalValueEl = container.querySelector('#goal-value');
+  if (goalValueEl) {
+    goalValueEl.addEventListener('focus', () => {
+      const num = parseIndian(goalValueEl.value);
+      goalValueEl.value = num || '';
+    });
+    goalValueEl.addEventListener('blur', () => {
+      const num = parseIndian(goalValueEl.value);
+      goalValueEl.value = indianFormat(num);
+    });
+  }
 
   // Add goal form submit
   container.querySelector('#goal-add-form')?.addEventListener('submit', (e) => {
@@ -114,7 +159,7 @@ export function mountGoalsForm(container, state, onUpdate) {
     const name  = container.querySelector('#goal-name').value.trim();
     const type  = container.querySelector('#goal-type').value;
     const year  = parseInt(container.querySelector('#goal-year').value, 10);
-    const value = parseFloat(container.querySelector('#goal-value').value) || 0;
+    const value = parseIndian(container.querySelector('#goal-value').value);
 
     if (!name || !year || !value) return;
 
