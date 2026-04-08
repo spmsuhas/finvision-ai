@@ -1,30 +1,47 @@
 /**
- * FinVision AI — Asset Allocation Doughnut Chart (Phase 4)
+ * FinVision AI — Asset Allocation Doughnut Chart (ALM Edition)
  * ============================================================
- * Animated doughnut chart showing Equity vs Debt allocation.
- * Updates in real-time as the user moves the allocation slider.
+ * 4-segment doughnut: Equity (blue) · Debt (green) · Real Assets (amber) · Cash (slate)
  */
 
 import { Chart } from 'chart.js/auto';
-import { CHART_COLORS } from '@/utils/constants.js';
-import { blendedReturn } from '@/utils/constants.js';
+import { INFLATION, RETURNS } from '@/utils/constants.js';
 import { formatPercent } from '@/utils/formatters.js';
 
 let _allocationChart = null;
 
+const SEG_COLORS = [
+  'rgba(96,165,250,0.9)',   // blue-400  — Equity
+  'rgba(52,211,153,0.9)',   // emerald-400 — Debt
+  'rgba(251,191,36,0.9)',   // amber-400 — Real Assets
+  'rgba(148,163,184,0.9)',  // slate-400 — Cash & Alts
+];
+
 /**
- * Initialize or update the allocation doughnut chart.
+ * Initialize or update the 4-segment allocation chart.
  * @param {string} canvasId
- * @param {number} equityPct   - 0 to 100
- * @param {number} debtPct     - 0 to 100
+ * @param {{ equityPct: number, debtPct: number, realAssetsPct: number, cashPct: number }} alloc
+ * @param {number} [inflationRate] - decimal, e.g. 0.08
  */
-export function renderAllocationChart(canvasId, equityPct, debtPct) {
+export function renderAllocationChart(canvasId, alloc, inflationRate = INFLATION.GENERAL) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return null;
 
+  const { equityPct = 0, debtPct = 0, realAssetsPct = 0, cashPct = 0 } = alloc;
+  const ir = inflationRate ?? INFLATION.GENERAL;
+
+  const cagrs = [
+    RETURNS.EQUITY * 100,                         // Equity: 13%
+    RETURNS.DEBT   * 100,                         // Debt:   7%
+    (ir + RETURNS.GOLD_SPREAD) * 100,             // Real Assets: inflation + 1.5%
+    RETURNS.CASH   * 100,                         // Cash:   4%
+  ];
+
   if (_allocationChart) {
-    // Update existing chart data (triggers animation)
-    _allocationChart.data.datasets[0].data = [equityPct, debtPct];
+    _allocationChart.data.datasets[0].data = [equityPct, debtPct, realAssetsPct, cashPct];
+    _allocationChart.options.plugins.tooltip.callbacks.label = item => {
+      return ` ${item.label}: ${item.raw}%  (${cagrs[item.dataIndex].toFixed(1)}% CAGR)`;
+    };
     _allocationChart.update('active');
     return _allocationChart;
   }
@@ -34,10 +51,10 @@ export function renderAllocationChart(canvasId, equityPct, debtPct) {
   _allocationChart = new Chart(ctx, {
     type: 'doughnut',
     data: {
-      labels: ['Equity', 'Debt'],
+      labels: ['Equity', 'Debt', 'Real Assets', 'Cash & Alts'],
       datasets: [{
-        data:            [equityPct, debtPct],
-        backgroundColor: [CHART_COLORS.EQUITY, CHART_COLORS.DEBT],
+        data:            [equityPct, debtPct, realAssetsPct, cashPct],
+        backgroundColor: SEG_COLORS,
         borderWidth:     0,
         hoverOffset:     6,
       }],
@@ -50,7 +67,7 @@ export function renderAllocationChart(canvasId, equityPct, debtPct) {
         legend: {
           display:  true,
           position: 'bottom',
-          labels:   { color: '#94A3B8', boxWidth: 12, font: { size: 11 } },
+          labels:   { color: '#94A3B8', boxWidth: 10, font: { size: 10 }, padding: 8 },
         },
         tooltip: {
           backgroundColor: '#1E293B',
@@ -60,9 +77,7 @@ export function renderAllocationChart(canvasId, equityPct, debtPct) {
           borderWidth:     1,
           callbacks: {
             label: item => {
-              const val = item.raw;
-              const cagr = item.dataIndex === 0 ? 13.0 : 6.0;
-              return ` ${item.label}: ${val}%  (${cagr}% CAGR)`;
+              return ` ${item.label}: ${item.raw}%  (${cagrs[item.dataIndex].toFixed(1)}% CAGR)`;
             },
           },
         },
@@ -77,3 +92,4 @@ export function renderAllocationChart(canvasId, equityPct, debtPct) {
 export function destroyAllocationChart() {
   if (_allocationChart) { _allocationChart.destroy(); _allocationChart = null; }
 }
+

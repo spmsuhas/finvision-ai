@@ -5,7 +5,6 @@
  * Emits state changes to the central store on every input event.
  */
 
-import { DEFAULTS, CORPUS } from '@/utils/constants.js';
 import { formatRupee } from '@/utils/formatters.js';
 
 /** Format number with Indian comma system (e.g. 12,34,567) */
@@ -30,7 +29,7 @@ function parseIndian(str) {
  * @param {Function} onUpdate - Callback(fieldName, value) on any change
  */
 export function mountPersonalDetailsForm(container, state, onUpdate) {
-  const income = state.monthlyIncome || DEFAULTS.MONTHLY_INCOME;
+  const income = state.monthlyIncome || 0;
 
   container.innerHTML = `
     <div class="max-w-5xl mx-auto space-y-5">
@@ -60,17 +59,17 @@ export function mountPersonalDetailsForm(container, state, onUpdate) {
             <label for="inp-dob" class="form-label">Date of Birth</label>
             <input id="inp-dob" type="date" class="form-input"
               value="${state.dob || ''}" />
-            <p class="form-hint">Current age: <strong id="display-current-age">${state.currentAge || DEFAULTS.CURRENT_AGE}</strong></p>
+            <p class="form-hint">Current age: <strong id="display-current-age">${state.currentAge || '—'}</strong></p>
           </div>
 
           <div class="form-group">
             <label for="inp-retirement-age" class="form-label">
               Retirement Age
-              <span class="text-brand font-semibold" id="retirement-age-display">${state.retirementAge || DEFAULTS.RETIREMENT_AGE}</span>
+              <span class="text-brand font-semibold" id="retirement-age-display">${state.retirementAge || 60}</span>
             </label>
             <input id="inp-retirement-age" type="range" class="form-range"
               min="45" max="75" step="1"
-              value="${state.retirementAge || DEFAULTS.RETIREMENT_AGE}" />
+              value="${state.retirementAge || 60}" />
             <div class="flex justify-between text-xs text-slate-500 mt-1"><span>45</span><span>60</span><span>75</span></div>
           </div>
         </div>
@@ -91,17 +90,17 @@ export function mountPersonalDetailsForm(container, state, onUpdate) {
                 value="${indianFormat(income)}"
                 data-rupee="monthlyIncome" />
             </div>
-            <p class="form-hint">Annual: <strong id="display-annual-income">${formatRupee(income * 12)}</strong></p>
+            <p class="form-hint">Annual: <strong id="display-annual-income">${income ? formatRupee(income * 12) : '—'}</strong></p>
           </div>
 
           <div class="form-group">
             <label for="inp-salary-raise" class="form-label">
               Annual Salary Raise
-              <span class="text-brand font-semibold" id="salary-raise-display">${((state.salaryRaiseRate || DEFAULTS.SALARY_RAISE_RATE) * 100).toFixed(1)}%</span>
+              <span class="text-brand font-semibold" id="salary-raise-display">${((state.salaryRaiseRate || 0) * 100).toFixed(1)}%</span>
             </label>
             <input id="inp-salary-raise" type="range" class="form-range"
               min="0" max="20" step="0.5"
-              value="${((state.salaryRaiseRate || DEFAULTS.SALARY_RAISE_RATE) * 100)}" />
+              value="${((state.salaryRaiseRate || 0) * 100)}" />
             <div class="flex justify-between text-xs text-slate-500 mt-1"><span>0%</span><span>10%</span><span>20%</span></div>
           </div>
         </div>

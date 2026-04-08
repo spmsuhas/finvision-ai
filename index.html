@@ -161,11 +161,6 @@
         </select>
       </div>
 
-      <!-- Save Button -->
-      <button id="btn-save-scenario" class="hidden icon-btn text-slate-400 hover:text-white" title="Save current scenario" aria-label="Save scenario">
-        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-      </button>
-
       <!-- Auth Button -->
       <div id="auth-guest-area">
         <button id="btn-open-auth" class="btn-primary text-sm py-1.5 px-4">Sign In</button>
@@ -440,9 +435,15 @@
          SECTION: INPUTS (MY PLAN)
     ───────────────────────────────────────────────────────── -->
     <section id="section-inputs" class="section-panel hidden p-6">
-      <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white">My Financial Plan</h1>
-        <p class="text-sm text-slate-400 mt-0.5">All fields update your projections in real-time</p>
+      <div class="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl font-bold text-white">My Financial Plan</h1>
+          <p class="text-sm text-slate-400 mt-0.5">All fields update your projections in real-time</p>
+        </div>
+        <button id="btn-save-plan" class="btn-primary flex items-center gap-2 text-sm py-2 px-4 flex-shrink-0">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+          Save Plan
+        </button>
       </div>
 
       <!-- Sub-section Tabs -->

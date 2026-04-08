@@ -16,7 +16,7 @@
  *   • calculatePlanHealth(trajectory, goals) → 0–100 score
  */
 
-import { INFLATION, CORPUS, GOAL_TYPES, blendedReturn } from './constants.js';
+import { INFLATION, CORPUS, GOAL_TYPES, blendedReturn, almBlendedReturn } from './constants.js';
 
 /**
  * @typedef {Object} PersonalInputs
@@ -116,21 +116,38 @@ export function buildCorpusTrajectory(inputs) {
     annualIncome,
     salaryRaiseRate,
     equityFraction,
-    currentEquity = 0,
-    currentDebt   = 0,
-    currentEPF    = 0,
+    currentEquity       = 0,
+    currentDebt         = 0,
+    currentEPF          = 0,
+    currentGold         = 0,
+    currentRealEstate   = 0,
+    currentCash         = 0,
+    currentAlternatives = 0,
+    inflationRate       = INFLATION.GENERAL,
     monthlyExpenses,
     monthlyMedicalPremium,
     planStartYear,
     goals = [],
   } = inputs;
 
-  const cagr = blendedReturn(equityFraction);
+  // Starting corpus = sum of ALL asset buckets across all 4 groups
+  let openingBalance = (currentEquity || 0) + (currentDebt || 0) + (currentEPF || 0)
+    + (currentGold || 0) + (currentRealEstate || 0) + (currentCash || 0) + (currentAlternatives || 0);
+
+  // Compute ALM-weighted blended CAGR
+  const total = openingBalance || 1; // avoid divide-by-zero
+  const cagr = openingBalance > 0
+    ? almBlendedReturn({
+        equity:     (currentEquity) / total,
+        debt:       (currentDebt + currentEPF) / total,
+        gold:       (currentGold) / total,
+        realEstate: (currentRealEstate) / total,
+        cash:       (currentCash) / total,
+        alts:       (currentAlternatives) / total,
+      }, inflationRate)
+    : blendedReturn(equityFraction); // fallback when corpus is zero
+
   const rows = [];
-
-  // Starting corpus = sum of all existing asset buckets
-  let openingBalance = (currentEquity || 0) + (currentDebt || 0) + (currentEPF || 0);
-
   const totalYears = CORPUS.EOL_AGE - currentAge;
 
   for (let i = 0; i <= totalYears; i++) {

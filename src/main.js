@@ -12,7 +12,7 @@
  *   6. Provide the global toast notification utility
  */
 
-import { DEFAULTS, APP } from './utils/constants.js';
+import { DEFAULTS, APP, INFLATION, almBlendedReturn } from './utils/constants.js';
 import { formatRupee, formatCompact } from './utils/formatters.js';
 import { buildCorpusTrajectory, calculatePlanHealth } from './utils/financeEngine.js';
 import { compareTaxRegimes } from './utils/taxEngine.js';
@@ -44,48 +44,64 @@ const state = {
   // Personal details
   name:              '',
   dob:               '',
-  currentAge:        DEFAULTS.CURRENT_AGE,
-  retirementAge:     DEFAULTS.RETIREMENT_AGE,
+  currentAge:        0,
+  retirementAge:     60,
 
   // Income
-  monthlyIncome:    DEFAULTS.MONTHLY_INCOME,
-  salaryRaiseRate:  DEFAULTS.SALARY_RAISE_RATE,
+  monthlyIncome:    0,
+  salaryRaiseRate:  0,
 
   // Expenses
-  monthlyExpenses:       DEFAULTS.MONTHLY_EXPENSES,
-  monthlyMedicalPremium: 2000,
+  monthlyExpenses:       0,
+  monthlyMedicalPremium: 0,
   monthlyEMI:            0,
   expenseCategories: [
-    { id: 'home',          label: 'Home / Rent',       amount: 25000 },
-    { id: 'food',          label: 'Food & Groceries',  amount: 15000 },
-    { id: 'vehicle',       label: 'Vehicle',            amount: 5000  },
-    { id: 'utilities',     label: 'Utilities',          amount: 5000  },
-    { id: 'education',     label: 'Education / Fees',   amount: 0     },
-    { id: 'entertainment', label: 'Entertainment',      amount: 5000  },
-    { id: 'others',        label: 'Others',             amount: 5000  },
+    { id: 'rent',          label: 'Rent / Mortgage',     amount: 0, group: 'home'      },
+    { id: 'maintenance',   label: 'Maintenance',         amount: 0, group: 'home'      },
+    { id: 'electricity',   label: 'Electricity & Water', amount: 0, group: 'home'      },
+    { id: 'broadband',     label: 'Broadband / WiFi',    amount: 0, group: 'home'      },
+    { id: 'groceries',     label: 'Groceries',           amount: 0, group: 'food'      },
+    { id: 'dining',        label: 'Dining Out',          amount: 0, group: 'food'      },
+    { id: 'fuel',          label: 'Fuel',                amount: 0, group: 'transport' },
+    { id: 'vehicle',       label: 'Vehicle Maintenance', amount: 0, group: 'transport' },
+    { id: 'publictrans',   label: 'Public Transport',    amount: 0, group: 'transport' },
+    { id: 'school',        label: 'School / College',    amount: 0, group: 'education' },
+    { id: 'tuition',       label: 'Tuition / Coaching',  amount: 0, group: 'education' },
+    { id: 'subscriptions', label: 'Subscriptions / OTT', amount: 0, group: 'lifestyle' },
+    { id: 'shopping',      label: 'Shopping & Personal', amount: 0, group: 'lifestyle' },
+    { id: 'gym',           label: 'Gym / Wellness',      amount: 0, group: 'lifestyle' },
+    { id: 'others',        label: 'Miscellaneous',       amount: 0, group: 'other'     },
   ],
 
-  // Portfolio / Assets
-  equityPercent:   DEFAULTS.EQUITY_PERCENT,
-  debtPercent:     DEFAULTS.DEBT_PERCENT,
-  currentEquity:   DEFAULTS.CURRENT_EQUITY,
-  currentDebt:     DEFAULTS.CURRENT_DEBT,
-  currentEPF:      DEFAULTS.CURRENT_EPF,
+  // Portfolio / Assets — ALM 4-group model
+  equityPercent:        0,
+  debtPercent:          0,
+  realAssetsPercent:    0,
+  cashPercent:          0,
+  currentEquity:        0,
+  currentDebt:          0,
+  currentEPF:           0,
+  currentGold:          0,
+  currentRealEstate:    0,
+  currentCash:          0,
+  currentAlternatives:  0,
   assetAllocation: {
-    debt:   { savingsBank: 25000, fixedDeposit: 50000, recurringDeposit: 0, ppf: 0, epf: DEFAULTS.CURRENT_EPF, nscKvp: 0, scss: 0, debtMutualFunds: 0, govtBonds: 0, companyFD: 0, npsDebt: 0, otherDebt: 25000, otherDebtRemarks: '' },
-    equity: { directEquity: 300000, equityMutualFunds: 200000, npsEquity: 0, pms: 0, aif: 0, ulipEquity: 0, esopRsu: 0, gratuity: 0, superannuation: 0, otherEquity: 100000, otherEquityRemarks: '' },
+    debt:       { savingsBank: 0, fixedDeposit: 0, recurringDeposit: 0, ppf: 0, epf: 0, nscKvp: 0, scss: 0, debtMutualFunds: 0, govtBonds: 0, companyFD: 0, npsDebt: 0, otherDebt: 0, otherDebtRemarks: '' },
+    equity:     { directEquity: 0, equityMutualFunds: 0, npsEquity: 0, pms: 0, aif: 0, ulipEquity: 0, esopRsu: 0, gratuity: 0, superannuation: 0, otherEquity: 0, otherEquityRemarks: '' },
+    realAssets: { gold: 0, realEstate: 0 },
+    cash:       { liquidFunds: 0, alternatives: 0 },
   },
 
   // Tax inputs
   taxInputs: {
-    grossSalary:          DEFAULTS.MONTHLY_INCOME * 12,
-    age:                  DEFAULTS.CURRENT_AGE,
-    epfContrib:           21600,     // ~12% of base, example
+    grossSalary:          0,
+    age:                  0,
+    epfContrib:           0,
     ppfContrib:           0,
     elssContrib:          0,
     lifeInsurance:        0,
     homeLoanInterest:     0,
-    medicalPremiumSelf:   24000,
+    medicalPremiumSelf:   0,
     medicalPremiumParents: 0,
     npsContrib80CCD1B:    0,
     parentsAbove60:       false,
@@ -136,18 +152,23 @@ function recalculate() {
 
   setTimeout(() => {
     const inputs = {
-      currentAge:          state.currentAge,
-      retirementAge:       state.retirementAge,
-      annualIncome:        state.monthlyIncome * 12,
-      salaryRaiseRate:     state.salaryRaiseRate,
-      equityFraction:      state.equityPercent / 100,
-      currentEquity:       state.currentEquity,
-      currentDebt:         state.currentDebt,
-      currentEPF:          state.currentEPF,
-      monthlyExpenses:     state.monthlyExpenses,
+      currentAge:           state.currentAge,
+      retirementAge:        state.retirementAge,
+      annualIncome:         state.monthlyIncome * 12,
+      salaryRaiseRate:      state.salaryRaiseRate,
+      equityFraction:       state.equityPercent / 100,
+      currentEquity:        state.currentEquity,
+      currentDebt:          state.currentDebt,
+      currentEPF:           state.currentEPF,
+      currentGold:          state.currentGold,
+      currentRealEstate:    state.currentRealEstate,
+      currentCash:          state.currentCash,
+      currentAlternatives:  state.currentAlternatives,
+      inflationRate:        INFLATION.GENERAL,
+      monthlyExpenses:      state.monthlyExpenses,
       monthlyMedicalPremium: state.monthlyMedicalPremium,
-      planStartYear:       state.planStartYear,
-      goals:               state.goals,
+      planStartYear:        state.planStartYear,
+      goals:                state.goals,
     };
 
     state.trajectory    = buildCorpusTrajectory(inputs);
@@ -204,7 +225,19 @@ function updateDashboardKPIs() {
   // Allocation displays
   setText('alloc-equity-pct', `${state.equityPercent}%`);
   setText('alloc-debt-pct',   `${state.debtPercent}%`);
-  const blended = (state.equityPercent / 100) * 0.13 + (state.debtPercent / 100) * 0.06;
+  const totalCorpus = state.currentEquity + state.currentDebt + state.currentEPF
+    + (state.currentGold || 0) + (state.currentRealEstate || 0)
+    + (state.currentCash || 0) + (state.currentAlternatives || 0);
+  const blended = totalCorpus > 0
+    ? almBlendedReturn({
+        equity:     state.currentEquity / totalCorpus,
+        debt:       (state.currentDebt + state.currentEPF) / totalCorpus,
+        gold:       (state.currentGold || 0) / totalCorpus,
+        realEstate: (state.currentRealEstate || 0) / totalCorpus,
+        cash:       (state.currentCash || 0) / totalCorpus,
+        alts:       (state.currentAlternatives || 0) / totalCorpus,
+      }, INFLATION.GENERAL)
+    : 0;
   setText('blended-cagr', `${(blended * 100).toFixed(1)}%`);
 }
 
@@ -247,10 +280,19 @@ function updateHealthBar() {
 function updateCharts() {
   renderCorpusPreview('chart-corpus-preview', state.trajectory);
   renderCorpusChart('chart-corpus-main', state.trajectory, state.goals);
-  renderAllocationChart('chart-allocation-donut', state.equityPercent, state.debtPercent);
+  renderAllocationChart('chart-allocation-donut', {
+    equityPct:     state.equityPercent,
+    debtPct:       state.debtPercent,
+    realAssetsPct: state.realAssetsPercent || 0,
+    cashPct:       state.cashPercent       || 0,
+  }, INFLATION.GENERAL);
   renderExpenseChart('chart-expense-bar', {
     income:     state.monthlyIncome,
-    lifestyle:  state.monthlyExpenses,
+    groups:     (state.expenseCategories || []).reduce((acc, c) => {
+      const g = c.group || 'other';
+      acc[g] = (acc[g] || 0) + (c.amount || 0);
+      return acc;
+    }, {}),
     medical:    state.monthlyMedicalPremium,
     emi:        state.monthlyEMI,
     taxes:      state.taxComparison
@@ -569,7 +611,6 @@ function setText(id, text) {
 async function handleAuthStateChange(user) {
   const guestArea = document.getElementById('auth-guest-area');
   const userArea  = document.getElementById('auth-user-area');
-  const saveBtn   = document.getElementById('btn-save-scenario');
 
   if (user) {
     state.uid       = user.uid;
@@ -583,7 +624,6 @@ async function handleAuthStateChange(user) {
 
     guestArea?.classList.add('hidden');
     userArea?.classList.remove('hidden');
-    saveBtn?.classList.remove('hidden');
 
     closeAuthModal();
     showToast(`Welcome back, ${state.userName}!`, 'success');
@@ -620,7 +660,6 @@ async function handleAuthStateChange(user) {
 
     guestArea?.classList.remove('hidden');
     userArea?.classList.add('hidden');
-    saveBtn?.classList.add('hidden');
 
     openAuthModal();
   }
@@ -1061,26 +1100,42 @@ function bindEvents() {
     }
   });
 
-  // ── Save scenario ──────────────────────────────────────────
-  document.getElementById('btn-save-scenario')?.addEventListener('click', async () => {
+  // ── Save Plan button (My Plan tab) ───────────────────────
+  document.getElementById('btn-save-plan')?.addEventListener('click', async () => {
     if (!state.uid) {
-      showToast('Sign in to save your scenario to the cloud', 'info');
+      showToast('Sign in to save your plan to the cloud', 'info');
       openAuthModal();
       return;
     }
+    const btn = document.getElementById('btn-save-plan');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
     try {
       await savePersonalDetails(state.uid, {
         name: state.name, dob: state.dob, currentAge: state.currentAge,
         retirementAge: state.retirementAge, monthlyIncome: state.monthlyIncome,
-        salaryRaiseRate: state.salaryRaiseRate, equityPercent: state.equityPercent,
-        debtPercent: state.debtPercent, currentEquity: state.currentEquity,
-        currentDebt: state.currentDebt, currentEPF: state.currentEPF,
-        monthlyExpenses: state.monthlyExpenses, monthlyMedicalPremium: state.monthlyMedicalPremium,
-        monthlyEMI: state.monthlyEMI, goals: state.goals, taxInputs: state.taxInputs,
+        salaryRaiseRate: state.salaryRaiseRate,
+        equityPercent: state.equityPercent, debtPercent: state.debtPercent,
+        realAssetsPercent: state.realAssetsPercent, cashPercent: state.cashPercent,
+        currentEquity: state.currentEquity, currentDebt: state.currentDebt,
+        currentEPF: state.currentEPF, currentGold: state.currentGold,
+        currentRealEstate: state.currentRealEstate, currentCash: state.currentCash,
+        currentAlternatives: state.currentAlternatives,
+        assetAllocation: state.assetAllocation,
+        monthlyExpenses: state.monthlyExpenses,
+        monthlyMedicalPremium: state.monthlyMedicalPremium,
+        monthlyEMI: state.monthlyEMI,
+        expenseCategories: state.expenseCategories,
+        goals: state.goals,
+        taxInputs: state.taxInputs,
+        planHealth: state.planHealth,
       });
-      showToast('Scenario saved to cloud ✓', 'success');
+      showToast('Plan saved ✓', 'success');
     } catch (err) {
       showToast(`Save failed: ${err.message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg> Save Plan`;
     }
   });
 

@@ -1,24 +1,36 @@
 /**
  * FinVision AI — Monthly Expenses Input Form
- * Categorised expense breakdown with add/remove capability.
+ * Grouped expense cards with add/remove capability per group.
  */
 import { formatRupee } from '@/utils/formatters.js';
 
-/** Pre-set categories (sum = ₹60,000 matching DEFAULTS.MONTHLY_EXPENSES) */
-const DEFAULT_CATEGORIES = [
-  { id: 'home',          label: 'Home / Rent',       amount: 25000 },
-  { id: 'food',          label: 'Food & Groceries',  amount: 15000 },
-  { id: 'vehicle',       label: 'Vehicle',            amount: 5000  },
-  { id: 'utilities',     label: 'Utilities',          amount: 5000  },
-  { id: 'education',     label: 'Education / Fees',   amount: 0     },
-  { id: 'entertainment', label: 'Entertainment',      amount: 5000  },
-  { id: 'others',        label: 'Others',             amount: 5000  },
+/* ── Expense Groups ─────────────────────────────────────────── */
+const EXPENSE_GROUPS = [
+  { id: 'home',       label: 'Home & Utilities',           color: 'bg-blue-400'   },
+  { id: 'food',       label: 'Food & Dining',              color: 'bg-amber-400'  },
+  { id: 'transport',  label: 'Transport',                  color: 'bg-violet-400' },
+  { id: 'education',  label: 'Education & Kids',           color: 'bg-cyan-400'   },
+  { id: 'lifestyle',  label: 'Entertainment & Lifestyle',  color: 'bg-rose-400'   },
+  { id: 'other',      label: 'Others',                     color: 'bg-emerald-400'},
 ];
 
-/** Category accent colours (cycles for custom entries) */
-const ACCENT_COLORS = [
-  'bg-blue-400','bg-amber-400','bg-violet-400','bg-emerald-400',
-  'bg-rose-400','bg-cyan-400','bg-orange-400','bg-pink-400',
+/** Pre-set categories per group — user fills in amounts */
+const DEFAULT_CATEGORIES = [
+  { id: 'rent',          label: 'Rent / Mortgage',     amount: 0, group: 'home'      },
+  { id: 'maintenance',   label: 'Maintenance',         amount: 0, group: 'home'      },
+  { id: 'electricity',   label: 'Electricity & Water', amount: 0, group: 'home'      },
+  { id: 'broadband',     label: 'Broadband / WiFi',    amount: 0, group: 'home'      },
+  { id: 'groceries',     label: 'Groceries',           amount: 0, group: 'food'      },
+  { id: 'dining',        label: 'Dining Out',          amount: 0, group: 'food'      },
+  { id: 'fuel',          label: 'Fuel',                amount: 0, group: 'transport' },
+  { id: 'vehicle',       label: 'Vehicle Maintenance', amount: 0, group: 'transport' },
+  { id: 'publictrans',   label: 'Public Transport',    amount: 0, group: 'transport' },
+  { id: 'school',        label: 'School / College',    amount: 0, group: 'education' },
+  { id: 'tuition',       label: 'Tuition / Coaching',  amount: 0, group: 'education' },
+  { id: 'subscriptions', label: 'Subscriptions / OTT', amount: 0, group: 'lifestyle' },
+  { id: 'shopping',      label: 'Shopping & Personal', amount: 0, group: 'lifestyle' },
+  { id: 'gym',           label: 'Gym / Wellness',      amount: 0, group: 'lifestyle' },
+  { id: 'others',        label: 'Miscellaneous',       amount: 0, group: 'other'     },
 ];
 
 /** Format number with Indian comma system (e.g. 12,34,567) */
@@ -38,16 +50,20 @@ function parseIndian(str) {
 
 export function mountExpensesForm(container, state, onUpdate) {
   // Work on a local mutable copy so splice/push don't mutate state directly
-  let categories = (state.expenseCategories && state.expenseCategories.length > 0)
+  let categories = (state.expenseCategories && state.expenseCategories.length > 0 && state.expenseCategories[0].group)
     ? state.expenseCategories.map(c => ({ ...c }))
     : DEFAULT_CATEGORIES.map(c => ({ ...c }));
 
-  const mm = state.monthlyMedicalPremium ?? 2000;
+  const mm = state.monthlyMedicalPremium ?? 0;
   const mi = state.monthlyEMI            ?? 0;
 
   /* ── helpers ─────────────────────────────────────────────── */
   function sumCategories() {
     return categories.reduce((s, c) => s + (c.amount || 0), 0);
+  }
+
+  function sumGroup(groupId) {
+    return categories.filter(c => c.group === groupId).reduce((s, c) => s + (c.amount || 0), 0);
   }
 
   function notifyUpdate() {
@@ -61,24 +77,35 @@ export function mountExpensesForm(container, state, onUpdate) {
     const medVal   = parseIndian(container.querySelector('#inp-medical-premium')?.value);
     const emiVal   = parseIndian(container.querySelector('#inp-emi')?.value);
     const total    = catTotal + medVal + emiVal;
-    const surplus  = Math.max(0, (state.monthlyIncome ?? 150000) - total);
+    const surplus  = Math.max(0, (state.monthlyIncome ?? 0) - total);
 
     const q = id => container.querySelector(id);
-    if (q('#exp-cat-badge'))        q('#exp-cat-badge').textContent        = formatRupee(catTotal) + '/mo';
-    if (q('#exp-cat-total-summary'))q('#exp-cat-total-summary').textContent= formatRupee(catTotal);
-    if (q('#exp-total-outflow'))    q('#exp-total-outflow').textContent    = formatRupee(total);
-    if (q('#exp-investable'))       q('#exp-investable').textContent       = formatRupee(surplus);
-    if (q('#exp-fixed-summary'))    q('#exp-fixed-summary').textContent    = formatRupee(medVal + emiVal);
+    if (q('#exp-total-outflow')) q('#exp-total-outflow').textContent = formatRupee(total);
+    if (q('#exp-investable'))    q('#exp-investable').textContent    = formatRupee(surplus);
+    if (q('#exp-fixed-summary')) q('#exp-fixed-summary').textContent = formatRupee(medVal + emiVal);
+
+    // Update per-group subtotals
+    for (const g of EXPENSE_GROUPS) {
+      const badge = q(`#exp-grp-badge-${g.id}`);
+      const sumEl = q(`#exp-grp-sum-${g.id}`);
+      const gTotal = sumGroup(g.id);
+      if (badge) badge.textContent = formatRupee(gTotal) + '/mo';
+      if (sumEl) sumEl.textContent = formatRupee(gTotal);
+    }
+    // Lifestyle total in footer
+    if (q('#exp-cat-total-summary')) q('#exp-cat-total-summary').textContent = formatRupee(catTotal);
   }
 
-  function renderCategoryRows() {
-    const list = container.querySelector('#exp-category-list');
+  function renderGroupRows(groupId) {
+    const list = container.querySelector(`#exp-group-${groupId}`);
     if (!list) return;
-    list.innerHTML = categories.map((cat, i) => `
-      <div class="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0" data-cat-idx="${i}">
-        <div class="w-2 h-2 rounded-full flex-shrink-0 ${ACCENT_COLORS[i % ACCENT_COLORS.length]}"></div>
+    const groupCats = categories.filter(c => c.group === groupId);
+    list.innerHTML = groupCats.map(cat => {
+      const i = categories.indexOf(cat);
+      return `
+      <div class="flex items-center gap-3 py-2 border-b border-white/5 last:border-0" data-cat-idx="${i}">
         <span class="flex-1 text-sm text-slate-200 truncate" title="${cat.label}">${cat.label}</span>
-        <div class="form-input-prefix-group w-40 flex-shrink-0">
+        <div class="form-input-prefix-group w-36 flex-shrink-0">
           <span class="form-input-prefix text-xs">₹</span>
           <input type="text" inputmode="numeric" class="form-input text-sm py-1.5"
             value="${indianFormat(cat.amount)}" data-cat-input="${i}" aria-label="${cat.label} amount" />
@@ -89,10 +116,10 @@ export function mountExpensesForm(container, state, onUpdate) {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
           </svg>
         </button>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
-    // Indian comma focus/blur for category rows
+    // Indian comma focus/blur
     list.querySelectorAll('[data-cat-input]').forEach(el => {
       el.addEventListener('focus', () => {
         const idx = +el.dataset.catInput;
@@ -105,10 +132,64 @@ export function mountExpensesForm(container, state, onUpdate) {
     });
   }
 
+  function renderAllGroups() {
+    for (const g of EXPENSE_GROUPS) renderGroupRows(g.id);
+  }
+
+  /* ── build group cards HTML ──────────────────────────────── */
+  function buildGroupCards() {
+    return EXPENSE_GROUPS.map(g => {
+      const gTotal = sumGroup(g.id);
+      return `
+        <div class="card">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="card-title flex items-center gap-2 text-sm">
+              <span class="w-2.5 h-2.5 rounded-full ${g.color} inline-block"></span>
+              ${g.label}
+            </h3>
+            <span id="exp-grp-badge-${g.id}" class="text-xs font-semibold text-brand">${formatRupee(gTotal)}/mo</span>
+          </div>
+          <div id="exp-group-${g.id}"></div>
+          <button type="button" class="exp-add-grp-btn flex items-center gap-1 text-xs text-brand hover:text-brand-light transition-colors py-1 mt-2"
+            data-add-group="${g.id}">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Add
+          </button>
+          <div class="exp-add-grp-form hidden flex-wrap gap-2 mt-2" data-add-form-group="${g.id}">
+            <input type="text" class="form-input flex-1 min-w-24 text-sm py-1.5 exp-new-label"
+              placeholder="Label" maxlength="32" />
+            <div class="form-input-prefix-group w-28 flex-shrink-0">
+              <span class="form-input-prefix text-xs">₹</span>
+              <input type="text" inputmode="numeric" class="form-input text-sm py-1.5 exp-new-amount" placeholder="0" />
+            </div>
+            <button type="button" class="btn-primary text-sm py-1 px-2 flex-shrink-0 exp-add-confirm" data-confirm-group="${g.id}">Add</button>
+            <button type="button" class="icon-btn text-slate-500 flex-shrink-0 exp-add-cancel" data-cancel-group="${g.id}" aria-label="Cancel">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  /* ── build summary footer rows ───────────────────────────── */
+  function buildSummaryRows() {
+    return EXPENSE_GROUPS.map(g => `
+      <div class="flex justify-between text-sm">
+        <span class="text-slate-400 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full ${g.color} inline-block"></span>${g.label}
+        </span>
+        <span id="exp-grp-sum-${g.id}" class="font-medium text-white">${formatRupee(sumGroup(g.id))}</span>
+      </div>`).join('');
+  }
+
   /* ── initial render ──────────────────────────────────────── */
   const initCatTotal = sumCategories();
   const initTotal    = initCatTotal + mm + mi;
-  const initSurplus  = Math.max(0, (state.monthlyIncome ?? 150000) - initTotal);
+  const initSurplus  = Math.max(0, (state.monthlyIncome ?? 0) - initTotal);
 
   container.innerHTML = `
     <div class="max-w-5xl mx-auto space-y-5">
@@ -118,94 +199,52 @@ export function mountExpensesForm(container, state, onUpdate) {
         <p class="text-xs text-slate-500 mt-0.5">Track your outflows to maximise investable surplus</p>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <p class="text-[11px] text-slate-500 text-center -mt-2">
+        Lifestyle expenses inflated at <span class="text-brand">8%/yr</span> in projections
+      </p>
 
-        <!-- ── Expense Categories ───────────────────────────── -->
-        <div class="card">
-          <div class="flex items-center justify-between mb-3">
-            <h3 class="card-title flex items-center gap-2 text-base">
-              <span class="w-2.5 h-2.5 rounded-full bg-rose-400 inline-block"></span>
-              Lifestyle Expenses
-            </h3>
-            <span id="exp-cat-badge" class="text-sm font-semibold text-brand">${formatRupee(initCatTotal)}/mo</span>
-          </div>
-
-          <p class="text-[11px] text-slate-500 mb-2">
-            Inflated at <span class="text-brand">8%/yr</span> in projections
-          </p>
-
-          <!-- Category rows (re-rendered on changes) -->
-          <div id="exp-category-list"></div>
-
-          <!-- Add new category inline form -->
-          <div class="mt-3">
-            <button id="btn-add-expense" type="button"
-              class="flex items-center gap-1.5 text-sm text-brand hover:text-brand-light transition-colors py-1">
-              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-              </svg>
-              Add expense type
-            </button>
-            <div id="exp-add-form" class="hidden flex-wrap gap-2 mt-2">
-              <input id="inp-new-exp-label" type="text"
-                class="form-input flex-1 min-w-32 text-sm py-1.5"
-                placeholder="e.g. Subscriptions" maxlength="32" />
-              <div class="form-input-prefix-group w-36 flex-shrink-0">
-                <span class="form-input-prefix text-xs">₹</span>
-                <input id="inp-new-exp-amount" type="text" inputmode="numeric"
-                  class="form-input text-sm py-1.5" placeholder="0" />
-              </div>
-              <button id="btn-add-expense-confirm" type="button"
-                class="btn-primary text-sm py-1.5 px-3 flex-shrink-0">Add</button>
-              <button id="btn-add-expense-cancel" type="button"
-                class="icon-btn text-slate-500 flex-shrink-0" aria-label="Cancel">
-                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        ${buildGroupCards()}
 
         <!-- ── Healthcare & Loans ───────────────────────────── -->
         <div class="card">
-          <h3 class="card-title flex items-center gap-2 text-base mb-3">
-            <span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>
+          <h3 class="card-title flex items-center gap-2 text-sm mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-pink-400 inline-block"></span>
             Healthcare &amp; Loans
           </h3>
           <p class="text-[11px] text-slate-500 mb-2">Fixed monthly obligations</p>
 
           <div class="space-y-3">
             <div class="form-group">
-              <label for="inp-medical-premium" class="form-label">Monthly Medical Insurance Premium</label>
+              <label for="inp-medical-premium" class="form-label text-xs">Medical Insurance Premium</label>
               <div class="form-input-prefix-group">
-                <span class="form-input-prefix">₹</span>
-                <input id="inp-medical-premium" type="text" inputmode="numeric" class="form-input"
+                <span class="form-input-prefix text-xs">₹</span>
+                <input id="inp-medical-premium" type="text" inputmode="numeric" class="form-input text-sm py-1.5"
                   value="${indianFormat(mm)}" placeholder="2,000" data-rupee-field="monthlyMedicalPremium" />
               </div>
-              <p class="form-hint">Health insurance · Inflated at <span class="text-red-400">13.5%/yr</span></p>
+              <p class="form-hint">Inflated at <span class="text-red-400">13.5%/yr</span></p>
             </div>
 
             <div class="form-group">
-              <label for="inp-emi" class="form-label">Monthly EMI / Loan Payments</label>
+              <label for="inp-emi" class="form-label text-xs">EMI / Loan Payments</label>
               <div class="form-input-prefix-group">
-                <span class="form-input-prefix">₹</span>
-                <input id="inp-emi" type="text" inputmode="numeric" class="form-input"
+                <span class="form-input-prefix text-xs">₹</span>
+                <input id="inp-emi" type="text" inputmode="numeric" class="form-input text-sm py-1.5"
                   value="${indianFormat(mi)}" placeholder="0" data-rupee-field="monthlyEMI" />
               </div>
-              <p class="form-hint">Home, car, personal loan EMIs — fixed amount</p>
+              <p class="form-hint">Home, car, personal loan EMIs — fixed</p>
             </div>
           </div>
         </div>
-
       </div>
 
       <!-- ── Monthly Summary (centered footer) ──────────────── -->
       <div class="card bg-surface-3 max-w-2xl mx-auto">
         <h3 class="card-title mb-3 text-center text-base">Monthly Summary</h3>
-        <div class="space-y-2">
-          <div class="flex justify-between text-sm">
-            <span class="text-slate-400">Lifestyle Expenses</span>
+        <div class="space-y-1.5">
+          ${buildSummaryRows()}
+          <div class="flex justify-between text-sm pt-1">
+            <span class="text-slate-400">All Lifestyle</span>
             <span id="exp-cat-total-summary" class="font-medium text-white">${formatRupee(initCatTotal)}</span>
           </div>
           <div class="flex justify-between text-sm">
@@ -227,12 +266,12 @@ export function mountExpensesForm(container, state, onUpdate) {
     </div>
   `;
 
-  // populate rows
-  renderCategoryRows();
+  // populate rows for each group
+  renderAllGroups();
 
-  /* ── category row events (delegated) ────────────────────── */
-  container.querySelector('#exp-category-list').addEventListener('input', (e) => {
-    const idx = e.target.dataset.catInput;
+  /* ── category row events (delegated on container) ───────── */
+  container.addEventListener('input', (e) => {
+    const idx = e.target.dataset?.catInput;
     if (idx === undefined) return;
     const raw = e.target.value.replace(/[^\d]/g, '');
     categories[+idx].amount = parseInt(raw, 10) || 0;
@@ -240,52 +279,67 @@ export function mountExpensesForm(container, state, onUpdate) {
     notifyUpdate();
   });
 
-  container.querySelector('#exp-category-list').addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-cat-delete]');
-    if (!btn) return;
-    categories.splice(+btn.dataset.catDelete, 1);
-    renderCategoryRows();
-    updateSummary();
-    notifyUpdate();
+  container.addEventListener('click', (e) => {
+    // Delete category
+    const delBtn = e.target.closest('[data-cat-delete]');
+    if (delBtn) {
+      const idx = +delBtn.dataset.catDelete;
+      const grp = categories[idx].group;
+      categories.splice(idx, 1);
+      renderAllGroups();
+      updateSummary();
+      notifyUpdate();
+      return;
+    }
+
+    // Show add form
+    const addBtn = e.target.closest('[data-add-group]');
+    if (addBtn) {
+      const gid = addBtn.dataset.addGroup;
+      const form = container.querySelector(`[data-add-form-group="${gid}"]`);
+      if (form) { form.style.display = 'flex'; addBtn.classList.add('hidden'); form.querySelector('.exp-new-label').focus(); }
+      return;
+    }
+
+    // Cancel add
+    const cancelBtn = e.target.closest('[data-cancel-group]');
+    if (cancelBtn) {
+      const gid = cancelBtn.dataset.cancelGroup;
+      const form = container.querySelector(`[data-add-form-group="${gid}"]`);
+      const btn  = container.querySelector(`[data-add-group="${gid}"]`);
+      if (form) { form.style.display = ''; form.querySelector('.exp-new-label').value = ''; form.querySelector('.exp-new-amount').value = ''; }
+      if (btn)  btn.classList.remove('hidden');
+      return;
+    }
+
+    // Confirm add
+    const confirmBtn = e.target.closest('[data-confirm-group]');
+    if (confirmBtn) {
+      const gid   = confirmBtn.dataset.confirmGroup;
+      const form  = container.querySelector(`[data-add-form-group="${gid}"]`);
+      const label = form.querySelector('.exp-new-label').value.trim();
+      const amt   = parseIndian(form.querySelector('.exp-new-amount').value);
+      if (!label) { form.querySelector('.exp-new-label').focus(); return; }
+      categories.push({ id: `custom_${Date.now()}`, label, amount: amt, group: gid });
+      renderAllGroups();
+      updateSummary();
+      notifyUpdate();
+      form.querySelector('.exp-new-label').value  = '';
+      form.querySelector('.exp-new-amount').value = '';
+      form.style.display = '';
+      const btn = container.querySelector(`[data-add-group="${gid}"]`);
+      if (btn) btn.classList.remove('hidden');
+      return;
+    }
   });
 
-  /* ── add expense ─────────────────────────────────────────── */
-  const addForm = container.querySelector('#exp-add-form');
-  const addBtn  = container.querySelector('#btn-add-expense');
-
-  addBtn.addEventListener('click', () => {
-    addForm.style.display = 'flex';
-    addBtn.classList.add('hidden');
-    container.querySelector('#inp-new-exp-label').focus();
-  });
-
-  container.querySelector('#btn-add-expense-cancel').addEventListener('click', () => {
-    addForm.style.display = '';
-    addBtn.classList.remove('hidden');
-    container.querySelector('#inp-new-exp-label').value  = '';
-    container.querySelector('#inp-new-exp-amount').value = '';
-  });
-
-  function confirmAddExpense() {
-    const label  = container.querySelector('#inp-new-exp-label').value.trim();
-    const amount = parseIndian(container.querySelector('#inp-new-exp-amount').value);
-    if (!label) { container.querySelector('#inp-new-exp-label').focus(); return; }
-    categories.push({ id: `custom_${Date.now()}`, label, amount });
-    renderCategoryRows();
-    updateSummary();
-    notifyUpdate();
-    container.querySelector('#inp-new-exp-label').value  = '';
-    container.querySelector('#inp-new-exp-amount').value = '';
-    addForm.style.display = '';
-    addBtn.classList.remove('hidden');
-  }
-
-  container.querySelector('#btn-add-expense-confirm').addEventListener('click', confirmAddExpense);
-  container.querySelector('#inp-new-exp-label').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); container.querySelector('#inp-new-exp-amount').focus(); }
-  });
-  container.querySelector('#inp-new-exp-amount').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); confirmAddExpense(); }
+  // Enter key handling for add forms
+  container.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const labelInp = e.target.closest('.exp-new-label');
+    if (labelInp) { e.preventDefault(); labelInp.closest('.exp-add-grp-form').querySelector('.exp-new-amount').focus(); return; }
+    const amtInp = e.target.closest('.exp-new-amount');
+    if (amtInp) { e.preventDefault(); amtInp.closest('.exp-add-grp-form').querySelector('.exp-add-confirm').click(); }
   });
 
   /* ── medical & EMI (rupee fields with Indian formatting) ── */

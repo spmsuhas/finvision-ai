@@ -1,8 +1,8 @@
 /**
  * FinVision AI — Monthly Cash Flow Bar Chart (Phase 4)
  * ============================================================
- * Horizontal stacked bar chart visualizing monthly income breakdown:
- * Lifestyle | Medical | EMI | Tax Provision | Investable Surplus
+ * Horizontal stacked bar chart visualizing monthly income breakdown
+ * with grouped expense categories.
  */
 
 import { Chart } from 'chart.js/auto';
@@ -11,36 +11,56 @@ import { formatCompact } from '@/utils/formatters.js';
 
 let _expenseChart = null;
 
-/**
- * @typedef {Object} CashFlowData
- * @property {number} income        - Monthly gross income (₹)
- * @property {number} lifestyle     - Lifestyle expenses (₹)
- * @property {number} medical       - Medical / insurance (₹)
- * @property {number} emi           - EMI / loan payments (₹)
- * @property {number} taxes         - Monthly tax provision (₹)
- * @property {number} investable    - Remaining investable surplus (₹)
- */
+const GROUP_COLORS = {
+  home:      'rgba(96,165,250,0.85)',   // blue-400
+  food:      'rgba(251,191,36,0.85)',   // amber-400
+  transport: 'rgba(167,139,250,0.85)',  // violet-400
+  education: 'rgba(34,211,238,0.85)',   // cyan-400
+  lifestyle: 'rgba(251,113,133,0.85)',  // rose-400
+  other:     'rgba(52,211,153,0.85)',   // emerald-400
+};
+
+const GROUP_LABELS = {
+  home:      'Home',
+  food:      'Food',
+  transport: 'Transport',
+  education: 'Education',
+  lifestyle: 'Lifestyle',
+  other:     'Other',
+};
 
 /**
- * Initialize or update the expense bar chart.
  * @param {string} canvasId
- * @param {CashFlowData} data
- * @returns {Chart|null}
+ * @param {Object} data
+ * @param {number} data.income
+ * @param {Object} data.groups - { home, food, transport, education, lifestyle, other }
+ * @param {number} data.medical
+ * @param {number} data.emi
+ * @param {number} data.taxes
+ * @param {number} data.investable
  */
 export function renderExpenseChart(canvasId, data) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return null;
 
-  const { lifestyle = 0, medical = 0, emi = 0, taxes = 0, investable = 0 } = data;
+  const { groups = {}, medical = 0, emi = 0, taxes = 0, investable = 0 } = data;
+
+  // Build datasets: one per group + medical + EMI + tax + investable
+  const groupKeys = ['home', 'food', 'transport', 'education', 'lifestyle', 'other'];
+  const dsData = [
+    ...groupKeys.map(k => ({ label: GROUP_LABELS[k], data: [groups[k] || 0], bg: GROUP_COLORS[k] })),
+    { label: 'Medical',    data: [medical],    bg: 'rgba(244,114,182,0.85)' },
+    { label: 'EMI',        data: [emi],        bg: 'rgba(167,243,208,0.85)' },
+    { label: 'Tax',        data: [taxes],      bg: 'rgba(148,163,184,0.75)' },
+    { label: 'Investable', data: [investable], bg: 'rgba(52,211,153,0.85)'  },
+  ];
 
   if (_expenseChart) {
-    // Update data in place for smooth animation
-    const ds = _expenseChart.data.datasets;
-    ds[0].data = [lifestyle];
-    ds[1].data = [medical];
-    ds[2].data = [emi];
-    ds[3].data = [taxes];
-    ds[4].data = [investable];
+    dsData.forEach((d, i) => {
+      if (_expenseChart.data.datasets[i]) {
+        _expenseChart.data.datasets[i].data = d.data;
+      }
+    });
     _expenseChart.update('active');
     return _expenseChart;
   }
@@ -51,13 +71,11 @@ export function renderExpenseChart(canvasId, data) {
     type: 'bar',
     data: {
       labels: ['Monthly Income'],
-      datasets: [
-        { label: 'Lifestyle',  data: [lifestyle],  backgroundColor: 'rgba(248,113,113,0.85)' },
-        { label: 'Medical',    data: [medical],    backgroundColor: 'rgba(251,191,36,0.85)'  },
-        { label: 'EMI',        data: [emi],        backgroundColor: 'rgba(167,243,208,0.85)' },
-        { label: 'Tax',        data: [taxes],      backgroundColor: 'rgba(148,163,184,0.75)' },
-        { label: 'Investable', data: [investable], backgroundColor: 'rgba(52,211,153,0.85)'  },
-      ],
+      datasets: dsData.map(d => ({
+        label: d.label,
+        data: d.data,
+        backgroundColor: d.bg,
+      })),
     },
     options: {
       responsive:          true,
@@ -67,7 +85,7 @@ export function renderExpenseChart(canvasId, data) {
         legend: {
           display:  true,
           position: 'bottom',
-          labels:   { color: '#94A3B8', boxWidth: 12, font: { size: 11 } },
+          labels:   { color: '#94A3B8', boxWidth: 10, font: { size: 10 }, padding: 8 },
         },
         tooltip: {
           backgroundColor: '#1E293B',

@@ -35,17 +35,46 @@ export const RETURNS = Object.freeze({
   EQUITY:    0.13,
 
   /** Fixed-income / debt CAGR — normalised domestic interest rates */
-  DEBT:      0.06,
+  DEBT:      0.07,
+
+  /** Gold expected return = inflationRate + 1.5% (SGB yield premium) */
+  GOLD_SPREAD:        0.015,
+
+  /** Real estate expected return = inflationRate + 3.0% (rental yield) */
+  REAL_ESTATE_SPREAD: 0.030,
+
+  /** Cash / liquid funds — loses to inflation but highly liquid */
+  CASH:      0.04,
 });
 
 /**
  * Calculate blended portfolio CAGR from equity fraction.
+ * Kept for backward compatibility.
  * @param {number} equityFraction - 0 to 1 (e.g., 0.6 = 60% equity)
  * @returns {number} Weighted CAGR
  */
 export function blendedReturn(equityFraction) {
   const ef = Math.max(0, Math.min(1, equityFraction));
   return ef * RETURNS.EQUITY + (1 - ef) * RETURNS.DEBT;
+}
+
+/**
+ * ALM (Asset-Liability Matching) blended return across all 4 asset groups.
+ * Gold and Real Estate returns are dynamically linked to inflation.
+ *
+ * @param {{ equity: number, debt: number, gold: number, realEstate: number, cash: number, alts: number }} weights
+ *   Each weight is a fraction 0–1; weights should sum to 1.
+ * @param {number} inflationRate  - Decimal (e.g. 0.08 for 8%)
+ * @returns {number} Weighted portfolio CAGR
+ */
+export function almBlendedReturn(weights, inflationRate) {
+  const ir = inflationRate ?? INFLATION.GENERAL;
+  return (weights.equity     || 0) * RETURNS.EQUITY
+       + (weights.debt       || 0) * RETURNS.DEBT
+       + (weights.gold       || 0) * (ir + RETURNS.GOLD_SPREAD)
+       + (weights.realEstate || 0) * (ir + RETURNS.REAL_ESTATE_SPREAD)
+       + (weights.cash       || 0) * RETURNS.CASH
+       + (weights.alts       || 0) * RETURNS.EQUITY;  // alternatives modelled same as equity
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -261,10 +290,11 @@ export const CHART_COLORS = Object.freeze({
    FIRESTORE COLLECTION NAMES
 ───────────────────────────────────────────────────────────── */
 export const FIRESTORE = Object.freeze({
-  USERS:           'Users',
+  USERS:            'Users',
+  FINVISION_ROOT:   'FinVision',      // namespace — all app data lives under this doc
   PERSONAL_DETAILS: 'Personal_Details',
-  FINANCIAL_PLANS: 'Financial_Plans',
-  AI_SUMMARIES:    'AI_Summaries',
+  FINANCIAL_PLANS:  'Financial_Plans',
+  AI_SUMMARIES:     'AI_Summaries',
 });
 
 /* ─────────────────────────────────────────────────────────────

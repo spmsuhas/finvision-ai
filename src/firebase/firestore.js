@@ -1,14 +1,14 @@
 /**
  * FinVision AI — Cloud Firestore Data Layer (Phase 5)
  * ============================================================
- * Schema:
- *   /Users/{uid}/
- *     Personal_Details  (sub-collection, single doc "profile")
- *     Financial_Plans   (sub-collection, one doc per saved scenario)
- *     AI_Summaries      (sub-collection, cached Gemini responses)
+ * Schema (FinVision-namespaced — never collides with other app data):
+ *   /Users/{uid}/FinVision/Personal_Details/profile
+ *   /Users/{uid}/FinVision/Financial_Plans/{planId}
+ *   /Users/{uid}/FinVision/AI_Summaries/latest
  *
+ * All data is scoped under the "FinVision" sub-collection so it
+ * never merges with any existing data in the user's Firebase document.
  * All read/write operations require an authenticated UID.
- * Firestore Security Rules (firestore.rules) enforce per-user isolation.
  */
 
 import {
@@ -23,17 +23,35 @@ function _requireUID(uid) {
   if (!isFirebaseConfigured || !db) throw new Error('Firebase not configured.');
 }
 
+/**
+ * Build a Firestore doc reference scoped under the FinVision namespace.
+ * Path: Users/{uid}/FinVision/data/{subCollection}/{docId}  (6 segments — even ✓)
+ * "data" is a fixed anchor document so FinVision acts as a true namespace
+ * sub-collection without colliding with any other data in the user's tree.
+ */
+function _fvDoc(uid, subCollection, docId) {
+  return doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINVISION_ROOT, 'data', subCollection, docId);
+}
+
+/**
+ * Build a Firestore collection reference scoped under the FinVision namespace.
+ * Path: Users/{uid}/FinVision/data/{subCollection}
+ */
+function _fvCollection(uid, subCollection) {
+  return collection(db, FIRESTORE.USERS, uid, FIRESTORE.FINVISION_ROOT, 'data', subCollection);
+}
+
 /* ─── PERSONAL DETAILS ────────────────────────────────────────── */
 
 export async function savePersonalDetails(uid, details) {
   _requireUID(uid);
-  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.PERSONAL_DETAILS, 'profile');
+  const ref = _fvDoc(uid, FIRESTORE.PERSONAL_DETAILS, 'profile');
   await setDoc(ref, { ...details, updatedAt: serverTimestamp() }, { merge: true });
 }
 
 export async function loadPersonalDetails(uid) {
   _requireUID(uid);
-  const ref  = doc(db, FIRESTORE.USERS, uid, FIRESTORE.PERSONAL_DETAILS, 'profile');
+  const ref  = _fvDoc(uid, FIRESTORE.PERSONAL_DETAILS, 'profile');
   const snap = await getDoc(ref);
   return snap.exists() ? snap.data() : null;
 }
@@ -42,7 +60,7 @@ export async function loadPersonalDetails(uid) {
 
 export async function savePlan(uid, planId, planData) {
   _requireUID(uid);
-  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS, planId);
+  const ref = _fvDoc(uid, FIRESTORE.FINANCIAL_PLANS, planId);
   await setDoc(ref, {
     ...planData,
     planId,
@@ -52,14 +70,14 @@ export async function savePlan(uid, planId, planData) {
 
 export async function loadAllPlans(uid) {
   _requireUID(uid);
-  const col  = collection(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS);
+  const col  = _fvCollection(uid, FIRESTORE.FINANCIAL_PLANS);
   const snap = await getDocs(col);
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function deletePlan(uid, planId) {
   _requireUID(uid);
-  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS, planId);
+  const ref = _fvDoc(uid, FIRESTORE.FINANCIAL_PLANS, planId);
   await deleteDoc(ref);
 }
 
@@ -67,13 +85,13 @@ export async function deletePlan(uid, planId) {
 
 export async function saveAISummary(uid, summary) {
   _requireUID(uid);
-  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.AI_SUMMARIES, 'latest');
+  const ref = _fvDoc(uid, FIRESTORE.AI_SUMMARIES, 'latest');
   await setDoc(ref, { summary, generatedAt: serverTimestamp() });
 }
 
 export async function loadAISummary(uid) {
   if (!uid || !isFirebaseConfigured || !db) return null;
-  const ref  = doc(db, FIRESTORE.USERS, uid, FIRESTORE.AI_SUMMARIES, 'latest');
+  const ref  = _fvDoc(uid, FIRESTORE.AI_SUMMARIES, 'latest');
   const snap = await getDoc(ref);
   return snap.exists() ? snap.data().summary : null;
 }
@@ -82,10 +100,9 @@ export async function loadAISummary(uid) {
 
 export function subscribeToPlan(uid, planId, onUpdate) {
   if (!isFirebaseConfigured || !db || !uid) return () => {};
-  const ref = doc(db, FIRESTORE.USERS, uid, FIRESTORE.FINANCIAL_PLANS, planId);
+  const ref = _fvDoc(uid, FIRESTORE.FINANCIAL_PLANS, planId);
   return onSnapshot(ref, snap => {
     if (snap.exists()) onUpdate(snap.data());
   });
 }
-
 
