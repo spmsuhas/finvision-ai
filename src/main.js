@@ -546,6 +546,10 @@ function updateGoalsPreview() {
 const SECTIONS = ['dashboard', 'inputs', 'projections', 'tax', 'ai', 'reports'];
 
 function navigateTo(sectionId, subSection = null) {
+  // Persist current location in URL hash
+  const hash = subSection ? `${sectionId}/${subSection}` : sectionId;
+  history.replaceState(null, '', `#${hash}`);
+
   // Hide all sections
   SECTIONS.forEach(id => {
     const el = document.getElementById(`section-${id}`);
@@ -1374,6 +1378,16 @@ function initApp() {
 
   // Run initial calculation with defaults
   recalculate();
+
+  // Restore last visited section from URL hash
+  (() => {
+    const raw = location.hash.replace('#', '');
+    if (!raw) return;
+    const [section, sub] = raw.split('/');
+    if (SECTIONS.includes(section)) {
+      navigateTo(section, sub || null);
+    }
+  })();
 
   // Auto-save every 10 seconds when signed in and data has changed
   _autoSaveTimer = setInterval(async () => {
