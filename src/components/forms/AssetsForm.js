@@ -169,7 +169,7 @@ export function mountAssetsForm(container, state, onUpdate) {
   function buildRows(gid) {
     const g = GROUPS.find(x => x.id === gid);
     return g.items.map(it => `
-      <div class="py-2 border-b border-white/5 last:border-0">
+      <div class="py-2 border-b border-white/5 last:border-0" data-asset-key="${gid}.${it.key}">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5 min-w-0">
             <span class="asset-info-wrap" aria-label="Info: ${it.label}">
@@ -181,11 +181,14 @@ export function mountAssetsForm(container, state, onUpdate) {
             </span>
             <label class="text-[13px] text-slate-300 leading-snug" for="inp-${gid}-${it.key}">${it.label}</label>
           </div>
-          <div class="form-input-prefix-group w-36 flex-shrink-0">
-            <span class="form-input-prefix text-xs">₹</span>
-            <input id="inp-${gid}-${it.key}" type="text" inputmode="numeric"
-              class="form-input text-sm py-1" value="${indianFormat(aa[gid][it.key])}"
-              data-group="${gid}" data-key="${it.key}" placeholder="0" />
+          <div class="flex flex-col items-end gap-0.5">
+            <div class="form-input-prefix-group w-36 flex-shrink-0">
+              <span class="form-input-prefix text-xs">₹</span>
+              <input id="inp-${gid}-${it.key}" type="text" inputmode="numeric"
+                class="form-input text-sm py-1" value="${indianFormat(aa[gid][it.key])}"
+                data-group="${gid}" data-key="${it.key}" placeholder="0" />
+            </div>
+            <span class="asset-sip-badge hidden text-xs text-emerald-400 font-medium pr-1" data-sip-key="${gid}.${it.key}"></span>
           </div>
         </div>
         ${it.hasRemarks ? `
@@ -309,4 +312,38 @@ export function mountAssetsForm(container, state, onUpdate) {
     const { group, key } = e.target.dataset;
     if (group && key) e.target.value = indianFormat(aa[group]?.[key] || 0);
   }, true);
+}
+
+/**
+ * Update the per-row SIP contribution badges in the Assets form after recalculation.
+ * Call this from updateAllUI() whenever historicalSIPByAsset changes.
+ *
+ * @param {HTMLElement} container - The form-assets container element
+ * @param {{ byAssetKey: Object }} historicalSIPByAsset
+ */
+export function updateAssetSIPBadges(container, historicalSIPByAsset) {
+  if (!container || !historicalSIPByAsset) return;
+  const { byAssetKey = {} } = historicalSIPByAsset;
+
+  // Clear all existing badges first
+  container.querySelectorAll('.asset-sip-badge').forEach(el => {
+    el.textContent = '';
+    el.classList.add('hidden');
+  });
+
+  // Set badges for asset keys that have SIP contributions
+  for (const [key, value] of Object.entries(byAssetKey)) {
+    if (!value || value <= 0) continue;
+    const badge = container.querySelector(`[data-sip-key="${key}"]`);
+    if (badge) {
+      // Format value
+      const formatted = value >= 1e7
+        ? `+${(value / 1e7).toFixed(2)} Cr from SIPs`
+        : value >= 1e5
+          ? `+${(value / 1e5).toFixed(2)} L from SIPs`
+          : `+₹${Math.round(value).toLocaleString('en-IN')} from SIPs`;
+      badge.textContent = formatted;
+      badge.classList.remove('hidden');
+    }
+  }
 }

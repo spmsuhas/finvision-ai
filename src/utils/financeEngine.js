@@ -132,8 +132,13 @@ export function buildCorpusTrajectory(inputs) {
   } = inputs;
 
   // Starting corpus = sum of ALL asset buckets across all 4 groups
-  let openingBalance = (currentEquity || 0) + (currentDebt || 0) + (currentEPF || 0)
+  const manualCorpus = (currentEquity || 0) + (currentDebt || 0) + (currentEPF || 0)
     + (currentGold || 0) + (currentRealEstate || 0) + (currentCash || 0) + (currentAlternatives || 0);
+
+  // Add accumulated value of historical SIP contributions (past periods)
+  // so the projection starts from a corpus that already reflects past investing.
+  const historicalSIP = computeHistoricalSIPByAsset(activeSavings);
+  let openingBalance  = manualCorpus + historicalSIP.total;
 
   // Compute ALM-weighted blended CAGR
   const total = openingBalance || 1; // avoid divide-by-zero
@@ -234,6 +239,57 @@ export function buildCorpusTrajectory(inputs) {
   }
 
   return rows;
+}
+
+/**
+ * Compute the accumulated value (as of today) of all asset-linked SIPs
+ * that have past contributions. This reflects historical SIP investing
+ * that should already be in the user's existing portfolio.
+ *
+ * Returns a record: { byAssetKey: { [key]: value }, unallocated: number, total: number }
+ * where keys match the format "groupId.itemKey" (e.g. "equity.equityMutualFunds").
+ *
+ * @param {Array} activeSavings - state.activeSavings
+ * @returns {{ byAssetKey: Object, unallocated: number, total: number }}
+ */
+export function computeHistoricalSIPByAsset(activeSavings = []) {
+  const byAssetKey = {};
+  let unallocated  = 0;
+  const today = new Date();
+  const todayYYYYMM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const [ty, tm] = todayYYYYMM.split('-').map(Number);
+  const todayMonths = ty * 12 + tm;
+
+  for (const sip of activeSavings) {
+    if (!sip.monthlyAmount || sip.monthlyAmount <= 0 || !sip.startDate) continue;
+    const [sy, sm] = sip.startDate.split('-').map(Number);
+    const sipStartMonths = sy * 12 + sm;
+
+    // Only accumulate periods that have already passed (start is in the past)
+    if (sipStartMonths >= todayMonths) continue;
+
+    // Effective end: earlier of today or the SIP's endDate
+    let effectiveEndMonths = todayMonths;
+    if (sip.endDate) {
+      const [ey, em] = sip.endDate.split('-').map(Number);
+      const sipEndMonths = ey * 12 + em;
+      effectiveEndMonths = Math.min(todayMonths, sipEndMonths);
+    }
+    if (effectiveEndMonths <= sipStartMonths) continue;
+
+    const months = effectiveEndMonths - sipStartMonths;
+    const rate   = (sip.annualRate && sip.annualRate > 0) ? sip.annualRate : sipRate(sip.type);
+    const fv     = sipFutureValue(sip.monthlyAmount, rate, months);
+
+    if (sip.linkType === 'asset' && sip.linkedAssetKey) {
+      byAssetKey[sip.linkedAssetKey] = (byAssetKey[sip.linkedAssetKey] || 0) + fv;
+    } else {
+      unallocated += fv;
+    }
+  }
+
+  const total = Object.values(byAssetKey).reduce((s, v) => s + v, 0) + unallocated;
+  return { byAssetKey, unallocated, total };
 }
 
 /**

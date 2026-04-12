@@ -14,7 +14,7 @@
 
 import { DEFAULTS, APP, INFLATION, almBlendedReturn } from './utils/constants.js';
 import { formatRupee, formatCompact } from './utils/formatters.js';
-import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding } from './utils/financeEngine.js';
+import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding, computeHistoricalSIPByAsset } from './utils/financeEngine.js';
 import { compareTaxRegimes } from './utils/taxEngine.js';
 import { Chart } from 'chart.js/auto';
 import { renderCorpusChart, renderCorpusPreview, destroyCorpusCharts } from './components/charts/CorpusChart.js';
@@ -22,7 +22,7 @@ import { renderAllocationChart, destroyAllocationChart } from './components/char
 import { renderExpenseChart, destroyExpenseChart } from './components/charts/ExpenseChart.js';
 import { renderProjectionTable, filterProjectionTable, nextPage, prevPage, exportCSV } from './components/tables/ProjectionTable.js';
 import { mountPersonalDetailsForm } from './components/forms/PersonalDetailsForm.js';
-import { mountAssetsForm }         from './components/forms/AssetsForm.js';
+import { mountAssetsForm, updateAssetSIPBadges } from './components/forms/AssetsForm.js';
 import { mountExpensesForm }        from './components/forms/ExpensesForm.js';
 import { mountGoalsForm }           from './components/forms/GoalsForm.js';
 import { mountSavingsForm }         from './components/forms/SavingsForm.js';
@@ -119,10 +119,11 @@ const state = {
   planStartYear:   DEFAULTS.PLAN_START_YEAR,
 
   // Computed output (set by recalculate())
-  trajectory:      [],
-  taxComparison:   null,
-  planHealth:      0,
-  goalFunding:     new Map(),
+  trajectory:          [],
+  taxComparison:       null,
+  planHealth:          0,
+  goalFunding:         new Map(),
+  historicalSIPByAsset: { byAssetKey: {}, unallocated: 0, total: 0 },
 };
 
 /* ═════════════════════════════════════════════════════════════
@@ -184,7 +185,8 @@ function recalculate() {
     state.trajectory    = buildCorpusTrajectory(inputs);
     state.taxComparison = compareTaxRegimes({ ...state.taxInputs, grossSalary: inputs.annualIncome });
     state.planHealth    = calculatePlanHealth(state.trajectory, state.goals);
-    state.goalFunding   = computeSIPGoalFunding(state.activeSavings, state.goals, state.planStartYear);
+    state.goalFunding         = computeSIPGoalFunding(state.activeSavings, state.goals, state.planStartYear);
+    state.historicalSIPByAsset = computeHistoricalSIPByAsset(state.activeSavings);
 
     updateAllUI();
     showRecalcIndicator(false);
@@ -207,6 +209,7 @@ function updateAllUI() {
   updateTaxSection();
   updateGoalsPreview();
   renderGoalTrackingChart();
+  updateAssetSIPBadges(document.getElementById('form-assets'), state.historicalSIPByAsset);
 }
 
 function updateDashboardKPIs() {
