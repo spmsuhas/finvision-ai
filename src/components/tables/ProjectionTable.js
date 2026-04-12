@@ -108,7 +108,7 @@ function _renderPage(page) {
           <th class="px-3 py-2 font-medium text-right">Goal Outlay</th>
           <th class="px-3 py-2 font-medium text-right">Total Exp</th>
           <th class="px-3 py-2 font-medium text-right">Surplus</th>
-          <th class="px-3 py-2 font-medium text-right text-emerald-400">SIP Invest</th>
+          <th class="px-3 py-2 font-medium text-right text-emerald-400">Investment</th>
           <th class="px-3 py-2 font-medium text-right">Interest</th>
           <th class="px-3 py-2 font-medium text-right">Closing Balance</th>
         </tr>

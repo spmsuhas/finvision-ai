@@ -585,7 +585,7 @@ function navigateTo(sectionId, subSection = null) {
 }
 
 function switchInputSubSection(subId) {
-  const subs = ['personal', 'assets', 'expenses', 'goals', 'savings'];
+  const subs = ['personal', 'savings', 'assets', 'expenses', 'goals'];
   subs.forEach(id => {
     const panel = document.getElementById(`inputs-sub-${id}`);
     const tab   = document.querySelector(`.input-tab[data-sub="${id}"]`);

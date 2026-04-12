@@ -1,11 +1,11 @@
-/**
- * FinVision AI — Life Goals Input Form (Phase 3)
+﻿/**
+ * FinVision AI â€” Life Goals Input Form (Phase 3)
  * Add/edit/delete goal cards with type, year, and today-value fields.
  */
 import { GOAL_TYPES } from '@/utils/constants.js';
 import { formatRupee } from '@/utils/formatters.js';
 
-const GOAL_ICONS = { EDUCATION: '🎓', MARRIAGE: '💍', PROPERTY: '🏠', VEHICLE: '🚗', TRAVEL: '✈️', RETIREMENT: '🏖️', OTHER: '🎯' };
+const GOAL_ICONS = { EDUCATION: 'ðŸŽ“', MARRIAGE: 'ðŸ’', PROPERTY: 'ðŸ ', VEHICLE: 'ðŸš—', TRAVEL: 'âœˆï¸', RETIREMENT: 'ðŸ–ï¸', OTHER: 'ðŸŽ¯' };
 
 /** Format number with Indian comma system (e.g. 12,34,567) */
 function indianFormat(n) {
@@ -22,67 +22,138 @@ function parseIndian(str) {
   return parseInt(String(str).replace(/[^\d]/g, ''), 10) || 0;
 }
 
-function renderGoalCards(container, goals, planStartYear, onUpdate) {
+function renderGoalTable(container, goals, planStartYear, onUpdate, onEdit) {
   const listEl = container.querySelector('#goals-list');
   if (!listEl) return;
 
   if (goals.length === 0) {
     listEl.innerHTML = `<div class="text-center py-12 text-slate-500">
-      <p class="text-4xl mb-3">🎯</p>
-      <p class="text-sm font-medium">No goals yet — add your first life milestone</p>
+      <p class="text-4xl mb-3">ðŸŽ¯</p>
+      <p class="text-sm font-medium">No goals yet â€” click <strong class="text-slate-400">Add Goal</strong> to plan your first milestone</p>
     </div>`;
     return;
   }
 
-  listEl.innerHTML = goals.map(g => {
-    const fy = g.targetYear ? `FY ${g.targetYear}-${String(g.targetYear + 1).slice(-2)}` : '–';
-    const yearsAway = g.targetYear ? g.targetYear - planStartYear : 0;
-    return `
-    <div class="goal-card bg-surface-3 rounded-xl p-4 flex items-start gap-4" data-goal-id="${g.id}">
-      <span class="text-2xl mt-0.5">${GOAL_ICONS[g.type] || '🎯'}</span>
-      <div class="flex-1 min-w-0">
-        <div class="flex items-center justify-between gap-2">
-          <p class="font-semibold text-white truncate">${g.name}</p>
-          <button class="btn-delete-goal icon-btn text-slate-500 hover:text-red-400" data-id="${g.id}" title="Remove goal" aria-label="Delete goal">
-            <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-          </button>
-        </div>
-        <p class="text-xs text-slate-400 mt-0.5">${GOAL_TYPES[g.type]?.label ?? g.type} · ${fy}${yearsAway > 0 ? ` · ${yearsAway} years away` : ''}</p>
-        <p class="text-sm font-semibold text-brand mt-1.5">${formatRupee(g.todayValue)} <span class="text-slate-500 font-normal text-xs">today's value</span></p>
-      </div>
+  listEl.innerHTML = `
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-xs text-slate-500 border-b border-white/10">
+            <th class="pb-2 pr-3 font-medium">Goal</th>
+            <th class="pb-2 pr-3 font-medium">Type</th>
+            <th class="pb-2 pr-3 font-medium text-right">Target Year</th>
+            <th class="pb-2 pr-3 font-medium text-right">Today's Value</th>
+            <th class="pb-2 font-medium text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/5">
+          ${goals.map(g => {
+            const yearsAway = g.targetYear ? g.targetYear - planStartYear : 0;
+            return `<tr data-goal-id="${g.id}">
+              <td class="py-2.5 pr-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-lg leading-none">${GOAL_ICONS[g.type] || 'ðŸŽ¯'}</span>
+                  <span class="text-white font-medium">${g.name}</span>
+                </div>
+              </td>
+              <td class="py-2.5 pr-3">
+                <span class="inline-block text-xs px-2 py-0.5 rounded-full bg-surface-3 text-brand font-medium whitespace-nowrap">${GOAL_TYPES[g.type]?.label ?? g.type}</span>
+              </td>
+              <td class="py-2.5 pr-3 text-right">
+                <span class="text-white font-semibold">${g.targetYear ?? 'â€“'}</span>
+                ${yearsAway > 0 ? `<span class="block text-xs text-slate-500">${yearsAway} yrs</span>` : ''}
+              </td>
+              <td class="py-2.5 pr-3 text-right text-brand font-semibold whitespace-nowrap">${formatRupee(g.todayValue)}</td>
+              <td class="py-2.5 text-right whitespace-nowrap">
+                <button class="btn-edit-goal icon-btn text-slate-500 hover:text-brand" data-id="${g.id}" aria-label="Edit goal">
+                  <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
+                <button class="btn-delete-goal icon-btn text-slate-500 hover:text-red-400" data-id="${g.id}" aria-label="Delete goal">
+                  <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
     </div>`;
-  }).join('');
 
   listEl.querySelectorAll('.btn-delete-goal').forEach(btn => {
     btn.addEventListener('click', () => {
       const id = btn.dataset.id;
       const updated = goals.filter(g => g.id !== id);
-      onUpdate('goals', updated);
-      renderGoalCards(container, updated, planStartYear, onUpdate);
+      goals.splice(0, goals.length, ...updated);
+      onUpdate('goals', [...goals]);
+      renderGoalTable(container, goals, planStartYear, onUpdate, onEdit);
+      const badge = container.querySelector('#goals-count-badge');
+      if (badge) badge.textContent = `${goals.length} goals`;
+    });
+  });
+
+  listEl.querySelectorAll('.btn-edit-goal').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const goal = goals.find(g => g.id === btn.dataset.id);
+      if (goal && onEdit) onEdit(goal);
     });
   });
 }
 
 export function mountGoalsForm(container, state, onUpdate) {
   const currentYear = state.planStartYear ?? new Date().getFullYear();
+  const goals = state.goals ?? [];
 
   container.innerHTML = `
     <div class="max-w-5xl mx-auto space-y-5">
 
-      <div class="text-center mb-2">
-        <h2 class="text-lg font-bold text-white tracking-wide">Life Goals</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Plan major milestones — inflation is auto-applied to future values</p>
+      <!-- Header row -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-wide">Life Goals</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Plan major milestones â€” inflation is auto-applied to future values</p>
+        </div>
+        <button id="btn-open-goal-modal" class="btn-primary flex items-center gap-2 text-sm">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Goal
+        </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <!-- Summary strip -->
+      <div class="card bg-surface-3 flex items-center justify-between gap-4 py-3 px-5">
+        <div class="flex items-center gap-2 text-slate-400 text-sm">
+          <span class="text-lg">ðŸŽ¯</span>
+          Life Goals Tracker
+        </div>
+        <span id="goals-count-badge" class="text-sm text-brand font-semibold">${goals.length} goals</span>
+      </div>
 
-        <!-- Add Goal Form Card -->
-        <div class="card">
-          <h3 class="card-title flex items-center gap-2 text-base mb-3">
+      <!-- Full-width goals table -->
+      <div class="card overflow-hidden">
+        <h3 class="card-title flex items-center gap-2 text-base mb-4">
+          <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
+          Your Goals
+        </h3>
+        <div id="goals-list"></div>
+      </div>
+
+    </div>
+
+    <!-- â”€â”€ Add / Edit Goal Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <div id="goal-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <div id="goal-modal-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+      <div class="relative z-10 w-full max-w-lg bg-surface-2 rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+        <!-- Modal header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 id="goal-modal-title" class="text-base font-semibold text-white flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
-            Add a Goal
+            Add Goal
           </h3>
-          <form id="goal-add-form" class="space-y-3">
+          <button id="goal-modal-close" class="icon-btn text-slate-400 hover:text-white" aria-label="Close">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <!-- Modal body -->
+        <div class="px-6 py-5 overflow-y-auto max-h-[calc(100vh-12rem)]">
+          <form id="goal-add-form" class="space-y-4">
 
             <div class="form-group">
               <label for="goal-name" class="form-label">Goal Name</label>
@@ -108,79 +179,108 @@ export function mountGoalsForm(container, state, onUpdate) {
             <div class="form-group">
               <label for="goal-value" class="form-label">Cost in Today's Rupees</label>
               <div class="form-input-prefix-group">
-                <span class="form-input-prefix">₹</span>
+                <span class="form-input-prefix">â‚¹</span>
                 <input id="goal-value" type="text" inputmode="numeric" class="form-input" required
-                  placeholder="20,00,000" data-rupee="goalValue" />
+                  placeholder="20,00,000" />
               </div>
-              <p class="form-hint">Enter today's value — inflation is auto-applied</p>
+              <p class="form-hint">Enter today's value â€” inflation is auto-applied</p>
             </div>
 
-            <div class="flex justify-end">
-              <button type="submit" class="btn-primary flex items-center gap-2">
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" id="goal-form-cancel" class="btn-secondary text-sm">Cancel</button>
+              <button type="submit" id="goal-form-submit" class="btn-primary flex items-center gap-2 text-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Goal
               </button>
             </div>
           </form>
         </div>
-
-        <!-- Goals List Card -->
-        <div class="card">
-          <h3 class="card-title flex items-center gap-2 text-base mb-3">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
-            Your Goals <span id="goals-count-badge" class="text-sm text-slate-400 font-normal">(${state.goals?.length ?? 0})</span>
-          </h3>
-          <div id="goals-list" class="space-y-3"></div>
-        </div>
-
       </div>
     </div>
   `;
 
-  // Initial render
-  renderGoalCards(container, state.goals ?? [], currentYear, onUpdate);
+  // â”€â”€ Modal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const modal      = container.querySelector('#goal-modal');
+  const modalTitle = container.querySelector('#goal-modal-title');
+  const submitBtn  = container.querySelector('#goal-form-submit');
 
-  /* ── Indian comma formatting for rupee input ──────────── */
-  const goalValueEl = container.querySelector('#goal-value');
-  if (goalValueEl) {
-    goalValueEl.addEventListener('focus', () => {
-      const num = parseIndian(goalValueEl.value);
-      goalValueEl.value = num || '';
-    });
-    goalValueEl.addEventListener('blur', () => {
-      const num = parseIndian(goalValueEl.value);
-      goalValueEl.value = indianFormat(num);
-    });
+  function openModal() {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+    exitEditMode();
   }
 
-  // Add goal form submit
-  container.querySelector('#goal-add-form')?.addEventListener('submit', (e) => {
+  container.querySelector('#btn-open-goal-modal').addEventListener('click', openModal);
+  container.querySelector('#goal-modal-close').addEventListener('click', closeModal);
+  container.querySelector('#goal-form-cancel').addEventListener('click', closeModal);
+  container.querySelector('#goal-modal-backdrop').addEventListener('click', closeModal);
+
+  // â”€â”€ Edit state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  let _editingId = null;
+
+  const nameEl  = container.querySelector('#goal-name');
+  const typeEl  = container.querySelector('#goal-type');
+  const yearEl  = container.querySelector('#goal-year');
+  const valueEl = container.querySelector('#goal-value');
+
+  function enterEditMode(goal) {
+    _editingId = goal.id;
+    modalTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span> Edit Goal`;
+    submitBtn.innerHTML  = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Update Goal`;
+    nameEl.value  = goal.name || '';
+    typeEl.value  = goal.type || 'OTHER';
+    yearEl.value  = goal.targetYear || '';
+    valueEl.value = indianFormat(goal.todayValue);
+    openModal();
+  }
+
+  function exitEditMode() {
+    _editingId = null;
+    modalTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span> Add Goal`;
+    submitBtn.innerHTML  = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Add Goal`;
+    container.querySelector('#goal-add-form').reset();
+    valueEl.value = '';
+  }
+
+  // Initial table render
+  renderGoalTable(container, goals, currentYear, onUpdate, enterEditMode);
+
+  // Indian comma formatting on value input
+  valueEl.addEventListener('focus', () => { const n = parseIndian(valueEl.value); valueEl.value = n || ''; });
+  valueEl.addEventListener('blur',  () => { const n = parseIndian(valueEl.value); valueEl.value = indianFormat(n); });
+
+  // Submit handler
+  container.querySelector('#goal-add-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const name  = container.querySelector('#goal-name').value.trim();
-    const type  = container.querySelector('#goal-type').value;
-    const year  = parseInt(container.querySelector('#goal-year').value, 10);
-    const value = parseIndian(container.querySelector('#goal-value').value);
+    const name  = nameEl.value.trim();
+    const type  = typeEl.value;
+    const year  = parseInt(yearEl.value, 10);
+    const value = parseIndian(valueEl.value);
 
     if (!name || !year || !value) return;
 
-    const newGoal = {
-      id:           crypto.randomUUID(),
-      name,
-      type,
-      targetYear:   year,
-      todayValue:   value,
-      inflationRate: GOAL_TYPES[type]?.inflation ?? 0.08,
-    };
+    if (_editingId) {
+      const idx = goals.findIndex(g => g.id === _editingId);
+      if (idx !== -1) {
+        goals[idx] = { ...goals[idx], name, type, targetYear: year, todayValue: value,
+          inflationRate: GOAL_TYPES[type]?.inflation ?? 0.08 };
+      }
+    } else {
+      goals.push({ id: crypto.randomUUID(), name, type, targetYear: year, todayValue: value,
+        inflationRate: GOAL_TYPES[type]?.inflation ?? 0.08 });
+    }
 
-    const updated = [...(state.goals ?? []), newGoal];
-    onUpdate('goals', updated);
-    state.goals = updated;  // keep local reference in sync for re-render
-
-    renderGoalCards(container, updated, currentYear, onUpdate);
+    onUpdate('goals', [...goals]);
+    state.goals = goals;
+    renderGoalTable(container, goals, currentYear, onUpdate, enterEditMode);
     const badge = container.querySelector('#goals-count-badge');
-    if (badge) badge.textContent = `(${updated.length})`;
-
-    // Reset form
-    e.target.reset();
+    if (badge) badge.textContent = `${goals.length} goals`;
+    closeModal();
   });
 }

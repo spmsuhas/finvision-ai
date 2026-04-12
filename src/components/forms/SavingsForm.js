@@ -1,5 +1,5 @@
-/**
- * FinVision AI — Investments Form (formerly Savings & SIPs)
+﻿/**
+ * FinVision AI â€” Investments Form (formerly Savings & SIPs)
  * ============================================================
  * Lets users log recurring investments (SIPs, RDs, PPF, NPS),
  * set a custom interest rate (or accept the default), link to a
@@ -37,15 +37,15 @@ const ASSET_CATEGORIES = [
   { key: 'debt.debtMutualFunds',  label: 'Debt Mutual Funds',             group: 'Debt' },
   { key: 'debt.govtBonds',        label: 'Govt Bonds / RBI Bonds / SGBs', group: 'Debt' },
   { key: 'debt.companyFD',        label: 'Corporate / Company FDs',       group: 'Debt' },
-  { key: 'debt.npsDebt',          label: 'NPS — Debt Allocation',          group: 'Debt' },
+  { key: 'debt.npsDebt',          label: 'NPS â€” Debt Allocation',          group: 'Debt' },
   { key: 'debt.otherDebt',        label: 'Other Debt',                     group: 'Debt' },
   // Equity
   { key: 'equity.directEquity',      label: 'Direct Equity (Demat)',               group: 'Equity' },
   { key: 'equity.equityMutualFunds', label: 'Equity Mutual Funds (incl. ELSS)',    group: 'Equity' },
-  { key: 'equity.npsEquity',         label: 'NPS — Equity Allocation',             group: 'Equity' },
+  { key: 'equity.npsEquity',         label: 'NPS â€” Equity Allocation',             group: 'Equity' },
   { key: 'equity.pms',               label: 'PMS (Portfolio Mgmt Services)',       group: 'Equity' },
   { key: 'equity.aif',               label: 'AIF (Alternative Investment Funds)',   group: 'Equity' },
-  { key: 'equity.ulipEquity',        label: 'ULIP — Equity Portion',               group: 'Equity' },
+  { key: 'equity.ulipEquity',        label: 'ULIP â€” Equity Portion',               group: 'Equity' },
   { key: 'equity.esopRsu',           label: 'ESOPs / RSUs',                        group: 'Equity' },
   { key: 'equity.gratuity',          label: 'Gratuity',                            group: 'Equity' },
   { key: 'equity.superannuation',    label: 'Superannuation / Pension Funds',      group: 'Equity' },
@@ -59,16 +59,16 @@ const ASSET_CATEGORIES = [
 ];
 
 function goalOptions(goals) {
-  const base = `<option value="">— Select Goal —</option>`;
+  const base = `<option value="">â€” Select Goal â€”</option>`;
   if (!goals || goals.length === 0) return base;
   return base + goals.map(g =>
-    `<option value="${g.id}">${g.name} (${g.targetYear ?? '–'})</option>`
+    `<option value="${g.id}">${g.name} (${g.targetYear ?? 'â€“'})</option>`
   ).join('');
 }
 
 function assetOptions() {
   const groups = [...new Set(ASSET_CATEGORIES.map(a => a.group))];
-  return `<option value="">— Select Category —</option>` +
+  return `<option value="">â€” Select Category â€”</option>` +
     groups.map(grp => {
       const cats = ASSET_CATEGORIES.filter(a => a.group === grp);
       return `<optgroup label="${grp}">${cats.map(a =>
@@ -79,7 +79,7 @@ function assetOptions() {
 
 function sipTypeOptions() {
   return SIP_TYPES.map(t =>
-    `<option value="${t.key}">${t.label} — ${(t.rate * 100).toFixed(1)}% p.a. (default)</option>`
+    `<option value="${t.key}">${t.label} â€” ${(t.rate * 100).toFixed(1)}% p.a. (default)</option>`
   ).join('');
 }
 
@@ -88,13 +88,13 @@ function linkLabel(sip, goals) {
     const g = goals.find(g => g.id === sip.linkedGoalId);
     return g
       ? `<span class="text-brand">${g.name}</span>`
-      : '<span class="text-slate-500">—</span>';
+      : '<span class="text-slate-500">â€”</span>';
   }
   if (sip.linkType === 'asset' && sip.linkedAssetKey) {
     const a = ASSET_CATEGORIES.find(a => a.key === sip.linkedAssetKey);
     return a
       ? `<span class="text-blue-400">${a.label}</span>`
-      : '<span class="text-slate-500">—</span>';
+      : '<span class="text-slate-500">â€”</span>';
   }
   return '<span class="text-slate-500">Unlinked</span>';
 }
@@ -105,7 +105,7 @@ function endDateDisplay(sip, goals) {
     const g = goals.find(g => g.id === sip.linkedGoalId);
     if (g?.targetYear) return `${g.targetYear}-12`;
   }
-  return '—';
+  return 'â€”';
 }
 
 function renderTable(container, savings, goals, onEdit) {
@@ -113,9 +113,9 @@ function renderTable(container, savings, goals, onEdit) {
   if (!tableWrap) return;
 
   if (!savings || savings.length === 0) {
-    tableWrap.innerHTML = `<div class="text-center py-10 text-slate-500">
-      <p class="text-3xl mb-2">💰</p>
-      <p class="text-sm">No active investments yet — add your first one above</p>
+    tableWrap.innerHTML = `<div class="text-center py-12 text-slate-500">
+      <p class="text-3xl mb-2">ðŸ’°</p>
+      <p class="text-sm">No active investments yet â€” click <strong class="text-slate-400">Add Investment</strong> to get started</p>
     </div>`;
     return;
   }
@@ -127,28 +127,30 @@ function renderTable(container, savings, goals, onEdit) {
           <tr class="text-left text-xs text-slate-500 border-b border-white/10">
             <th class="pb-2 pr-3 font-medium">Type</th>
             <th class="pb-2 pr-3 font-medium">Name</th>
-            <th class="pb-2 pr-3 font-medium text-right">₹/mo</th>
+            <th class="pb-2 pr-3 font-medium text-right">â‚¹/mo</th>
             <th class="pb-2 pr-3 font-medium text-right">Rate</th>
-            <th class="pb-2 pr-3 font-medium">Linked To</th>
+            <th class="pb-2 pr-3 font-medium">Start</th>
             <th class="pb-2 pr-3 font-medium">End</th>
-            <th class="pb-2 font-medium"></th>
+            <th class="pb-2 pr-3 font-medium">Linked To</th>
+            <th class="pb-2 font-medium text-right">Actions</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-white/5">
           ${savings.map(s => {
-            const typeLabel = SIP_TYPES.find(t => t.key === s.type)?.label ?? s.type;
+            const typeLabel   = SIP_TYPES.find(t => t.key === s.type)?.label ?? s.type;
             const defaultRate = SIP_TYPES.find(t => t.key === s.type)?.rate ?? 0.10;
-            const rate = s.annualRate ?? defaultRate;
+            const rate        = s.annualRate ?? defaultRate;
             return `<tr data-sip-id="${s.id}">
               <td class="py-2.5 pr-3">
-                <span class="inline-block text-xs px-2 py-0.5 rounded-full bg-surface-3 text-brand font-medium">${typeLabel.split(' ')[0]}</span>
+                <span class="inline-block text-xs px-2 py-0.5 rounded-full bg-surface-3 text-brand font-medium whitespace-nowrap">${typeLabel.split(' ')[0]}</span>
               </td>
-              <td class="py-2.5 pr-3 text-white font-medium truncate max-w-[120px]">${s.name || '—'}</td>
-              <td class="py-2.5 pr-3 text-right text-emerald-400 font-semibold">${formatRupee(s.monthlyAmount)}</td>
-              <td class="py-2.5 pr-3 text-right text-slate-300">${(rate * 100).toFixed(1)}%</td>
+              <td class="py-2.5 pr-3 text-white font-medium">${s.name || 'â€”'}</td>
+              <td class="py-2.5 pr-3 text-right text-emerald-400 font-semibold whitespace-nowrap">${formatRupee(s.monthlyAmount)}</td>
+              <td class="py-2.5 pr-3 text-right text-slate-300 whitespace-nowrap">${(rate * 100).toFixed(1)}%</td>
+              <td class="py-2.5 pr-3 text-xs text-slate-400 whitespace-nowrap">${s.startDate || 'â€”'}</td>
+              <td class="py-2.5 pr-3 text-xs text-slate-400 whitespace-nowrap">${endDateDisplay(s, goals)}</td>
               <td class="py-2.5 pr-3 text-xs">${linkLabel(s, goals)}</td>
-              <td class="py-2.5 pr-3 text-xs text-slate-400">${endDateDisplay(s, goals)}</td>
-              <td class="py-2.5 text-right flex items-center justify-end gap-1">
+              <td class="py-2.5 text-right whitespace-nowrap">
                 <button class="btn-edit-sip icon-btn text-slate-500 hover:text-brand" data-id="${s.id}" aria-label="Edit">
                   <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                 </button>
@@ -174,8 +176,7 @@ function renderTable(container, savings, goals, onEdit) {
 
   tableWrap.querySelectorAll('.btn-edit-sip').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = btn.dataset.id;
-      const sip = savings.find(s => s.id === id);
+      const sip = savings.find(s => s.id === btn.dataset.id);
       if (sip && onEdit) onEdit(sip);
     });
   });
@@ -193,34 +194,65 @@ export function mountSavingsForm(container, state, onUpdate) {
   const savings = state.activeSavings ?? [];
   const today   = new Date();
   const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const defaultRate = SIP_TYPES[0].rate; // MF_SIP default
+  const defaultRate = SIP_TYPES[0].rate;
 
   container.innerHTML = `
     <div class="max-w-5xl mx-auto space-y-5">
 
-      <div class="text-center mb-2">
-        <h2 class="text-lg font-bold text-white tracking-wide">Investments</h2>
-        <p class="text-xs text-slate-500 mt-0.5">Track recurring investments and link them to goals or asset categories</p>
+      <!-- Header row with title + Add button -->
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-bold text-white tracking-wide">Investments</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Track recurring investments and link them to goals or asset categories</p>
+        </div>
+        <button id="btn-open-sip-modal" class="btn-primary flex items-center gap-2 text-sm">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Investment
+        </button>
       </div>
 
-      <!-- Summary banner -->
-      <div class="card bg-surface-3 max-w-2xl mx-auto flex items-center justify-between gap-4 py-3 px-5">
+      <!-- Summary strip -->
+      <div class="card bg-surface-3 flex items-center justify-between gap-4 py-3 px-5">
         <div class="flex items-center gap-2 text-slate-400 text-sm">
           <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Total Monthly Investments
         </div>
-        <p class="text-xl font-bold text-emerald-400" id="sip-total-monthly">${formatRupee(savings.reduce((s, e) => s + (e.monthlyAmount || 0), 0))}</p>
+        <div class="flex items-center gap-4">
+          <p class="text-xl font-bold text-emerald-400" id="sip-total-monthly">${formatRupee(savings.reduce((s, e) => s + (e.monthlyAmount || 0), 0))}</p>
+          <span id="sip-count-badge" class="text-xs text-slate-500">${savings.length} active</span>
+        </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+      <!-- Full-width investments table -->
+      <div class="card overflow-hidden">
+        <h3 class="card-title flex items-center gap-2 text-base mb-4">
+          <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
+          Active Investments
+        </h3>
+        <div id="sip-table-wrap"></div>
+      </div>
 
-        <!-- Add Investment Form -->
-        <div class="card">
-          <h3 class="card-title flex items-center gap-2 text-base mb-3">
+    </div>
+
+    <!-- â”€â”€ Add / Edit Investment Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <div id="sip-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+      <!-- Backdrop -->
+      <div id="sip-modal-backdrop" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+      <!-- Dialog -->
+      <div class="relative z-10 w-full max-w-lg bg-surface-2 rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+        <!-- Modal header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-white/10">
+          <h3 id="sip-modal-title" class="text-base font-semibold text-white flex items-center gap-2">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
             Add Investment
           </h3>
-          <form id="sip-add-form" class="space-y-3">
+          <button id="sip-modal-close" class="icon-btn text-slate-400 hover:text-white" aria-label="Close">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <!-- Modal body -->
+        <div class="px-6 py-5 overflow-y-auto max-h-[calc(100vh-12rem)]">
+          <form id="sip-add-form" class="space-y-4">
 
             <div class="form-group">
               <label for="sip-type" class="form-label">Investment Type</label>
@@ -237,23 +269,18 @@ export function mountSavingsForm(container, state, onUpdate) {
               <div class="form-group">
                 <label for="sip-amount" class="form-label">Monthly Amount</label>
                 <div class="form-input-prefix-group">
-                  <span class="form-input-prefix">₹</span>
-                  <input id="sip-amount" type="text" inputmode="numeric" class="form-input"
-                    placeholder="5,000" data-rupee />
+                  <span class="form-input-prefix">â‚¹</span>
+                  <input id="sip-amount" type="text" inputmode="numeric" class="form-input" placeholder="5,000" />
                 </div>
               </div>
               <div class="form-group">
-                <label for="sip-rate" class="form-label">
-                  Interest Rate
-                  <span class="text-slate-500 text-xs">(% p.a.)</span>
-                </label>
+                <label for="sip-rate" class="form-label">Rate <span class="text-slate-500 text-xs">(% p.a.)</span></label>
                 <input id="sip-rate" type="number" class="form-input" min="0" max="50" step="0.1"
-                  value="${(defaultRate * 100).toFixed(1)}" placeholder="${(defaultRate * 100).toFixed(1)}" />
+                  value="${(defaultRate * 100).toFixed(1)}" />
                 <p id="sip-rate-hint" class="form-hint">Default: ${(defaultRate * 100).toFixed(1)}% for this type</p>
               </div>
             </div>
 
-            <!-- Link Type selector -->
             <div class="form-group">
               <label for="sip-link-type" class="form-label">Link To</label>
               <select id="sip-link-type" class="form-input">
@@ -263,14 +290,12 @@ export function mountSavingsForm(container, state, onUpdate) {
               </select>
             </div>
 
-            <!-- Goal target (shown when link-type = goal) -->
             <div id="sip-goal-wrap" class="form-group hidden">
               <label for="sip-goal" class="form-label">Select Goal</label>
               <select id="sip-goal" class="form-input">${goalOptions(goals)}</select>
               <p id="sip-end-hint" class="form-hint">End date will default to goal's target year</p>
             </div>
 
-            <!-- Asset target (shown when link-type = asset) -->
             <div id="sip-asset-wrap" class="form-group hidden">
               <label for="sip-asset" class="form-label">Select Asset Category</label>
               <select id="sip-asset" class="form-input">${assetOptions()}</select>
@@ -288,74 +313,68 @@ export function mountSavingsForm(container, state, onUpdate) {
               </div>
             </div>
 
-            <div class="flex justify-end">
-              <button type="submit" class="btn-primary flex items-center gap-2">
+            <div class="flex justify-end gap-3 pt-2">
+              <button type="button" id="sip-form-cancel" class="btn-secondary text-sm">Cancel</button>
+              <button type="submit" id="sip-form-submit" class="btn-primary flex items-center gap-2 text-sm">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
                 Add Investment
               </button>
             </div>
           </form>
         </div>
-
-        <!-- Investment Table Card -->
-        <div class="card overflow-hidden">
-          <h3 class="card-title flex items-center gap-2 text-base mb-3">
-            <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
-            Active Investments
-            <span id="sip-count-badge" class="text-sm text-slate-400 font-normal">(${savings.length})</span>
-          </h3>
-          <div id="sip-table-wrap"></div>
-        </div>
-
       </div>
     </div>
   `;
 
-  // ── Edit state ──────────────────────────────────────────────
-  let _editingId = null; // null = add mode; string = edit mode
+  // â”€â”€ Modal helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const modal     = container.querySelector('#sip-modal');
+  const modalTitle = container.querySelector('#sip-modal-title');
+  const submitBtn  = container.querySelector('#sip-form-submit');
 
-  const formCard     = container.querySelector('.card');
-  const formTitle    = container.querySelector('.card h3');
-  const submitBtn    = container.querySelector('#sip-add-form button[type="submit"]');
+  function openModal() {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    document.body.style.overflow = '';
+    exitEditMode();
+  }
+
+  container.querySelector('#btn-open-sip-modal').addEventListener('click', openModal);
+  container.querySelector('#sip-modal-close').addEventListener('click', closeModal);
+  container.querySelector('#sip-form-cancel').addEventListener('click', closeModal);
+  container.querySelector('#sip-modal-backdrop').addEventListener('click', closeModal);
+
+  // â”€â”€ Edit state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  let _editingId = null;
 
   function enterEditMode(sip) {
     _editingId = sip.id;
-    // Update form header
-    if (formTitle) formTitle.innerHTML = `
-      <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
-      Edit Investment
-      <button type="button" id="sip-cancel-edit" class="ml-auto text-xs text-slate-400 hover:text-white font-normal underline underline-offset-2">Cancel</button>`;
-    // Update submit button
-    if (submitBtn) {
-      submitBtn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Update Investment`;
-    }
-    // Populate form fields
+    modalTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span> Edit Investment`;
+    submitBtn.innerHTML  = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Update Investment`;
+    // Populate fields
     typeSel.value     = sip.type;
-    typeSel.dispatchEvent(new Event('change')); // trigger rate auto-fill
-    container.querySelector('#sip-name').value = sip.name || '';
+    typeSel.dispatchEvent(new Event('change'));
+    container.querySelector('#sip-name').value  = sip.name || '';
     amtEl.value       = indianFormat(sip.monthlyAmount);
     const defRate     = SIP_TYPES.find(t => t.key === sip.type)?.rate ?? 0.10;
     rateEl.value      = ((sip.annualRate ?? defRate) * 100).toFixed(1);
     linkTypeSel.value = sip.linkType || '';
     linkTypeSel.dispatchEvent(new Event('change'));
-    if (sip.linkType === 'goal')  goalSel.value = sip.linkedGoalId  || '';
+    if (sip.linkType === 'goal')  goalSel.value = sip.linkedGoalId || '';
     if (sip.linkType === 'asset') container.querySelector('#sip-asset').value = sip.linkedAssetKey || '';
-    startEl.value     = sip.startDate  || thisMonth;
-    endEl.value       = sip.endDate    || '';
-    // Wire cancel button
-    container.querySelector('#sip-cancel-edit')?.addEventListener('click', exitEditMode);
-    // Scroll form into view
-    formCard?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    startEl.value = sip.startDate || thisMonth;
+    endEl.value   = sip.endDate   || '';
+    openModal();
   }
 
   function exitEditMode() {
     _editingId = null;
-    if (formTitle) formTitle.innerHTML = `
-      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
-      Add Investment`;
-    if (submitBtn) {
-      submitBtn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Add Investment`;
-    }
+    modalTitle.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span> Add Investment`;
+    submitBtn.innerHTML  = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Add Investment`;
     container.querySelector('#sip-add-form').reset();
     amtEl.value   = '';
     startEl.value = thisMonth;
@@ -363,137 +382,102 @@ export function mountSavingsForm(container, state, onUpdate) {
     assetWrap.classList.add('hidden');
     const firstType = SIP_TYPES[0];
     rateEl.value = (firstType.rate * 100).toFixed(1);
-    rateHint.textContent = `Default: ${(firstType.rate * 100).toFixed(1)}% for this type`;
+    if (rateHint) rateHint.textContent = `Default: ${(firstType.rate * 100).toFixed(1)}% for this type`;
   }
 
-  // Initial table render
+  // Initial render
   renderTable(container, savings, goals, enterEditMode);
 
-  // Indian comma formatting on amount input
-  const amtEl  = container.querySelector('#sip-amount');
-  const rateEl = container.querySelector('#sip-rate');
+  // â”€â”€ Form field refs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const amtEl      = container.querySelector('#sip-amount');
+  const rateEl     = container.querySelector('#sip-rate');
+  const rateHint   = container.querySelector('#sip-rate-hint');
+  const typeSel    = container.querySelector('#sip-type');
+  const linkTypeSel = container.querySelector('#sip-link-type');
+  const goalWrap   = container.querySelector('#sip-goal-wrap');
+  const assetWrap  = container.querySelector('#sip-asset-wrap');
+  const goalSel    = container.querySelector('#sip-goal');
+  const endHint    = container.querySelector('#sip-end-hint');
+  const startEl    = container.querySelector('#sip-start');
+  const endEl      = container.querySelector('#sip-end');
+
+  // Indian comma on amount
   amtEl.addEventListener('focus', () => { const n = parseIndian(amtEl.value); amtEl.value = n || ''; });
   amtEl.addEventListener('blur',  () => { const n = parseIndian(amtEl.value); amtEl.value = indianFormat(n); });
 
   // Auto-fill rate when type changes
-  const typeSel = container.querySelector('#sip-type');
-  const rateHint = container.querySelector('#sip-rate-hint');
   typeSel.addEventListener('change', () => {
     const t = SIP_TYPES.find(t => t.key === typeSel.value);
     if (t) {
       rateEl.value = (t.rate * 100).toFixed(1);
-      rateHint.textContent = `Default: ${(t.rate * 100).toFixed(1)}% for this type`;
+      if (rateHint) rateHint.textContent = `Default: ${(t.rate * 100).toFixed(1)}% for this type`;
     }
   });
 
-  // Show/hide goal or asset selector based on link-type
-  const linkTypeSel  = container.querySelector('#sip-link-type');
-  const goalWrap     = container.querySelector('#sip-goal-wrap');
-  const assetWrap    = container.querySelector('#sip-asset-wrap');
-  const goalSel      = container.querySelector('#sip-goal');
-  const endHint      = container.querySelector('#sip-end-hint');
-
+  // Show/hide goal or asset selector
   linkTypeSel.addEventListener('change', () => {
     const v = linkTypeSel.value;
     goalWrap.classList.toggle('hidden',  v !== 'goal');
     assetWrap.classList.toggle('hidden', v !== 'asset');
   });
 
-  // Update end-date hint when goal selection changes
   goalSel.addEventListener('change', () => {
     if (!endHint) return;
     const g = goals.find(g => g.id === goalSel.value);
     endHint.textContent = g?.targetYear
       ? `End date defaults to ${g.targetYear}-12`
-      : 'End date will default to goal\'s target year';
+      : "End date will default to goal's target year";
   });
 
-  // Calendar popup on click for month inputs
-  const startEl = container.querySelector('#sip-start');
-  const endEl   = container.querySelector('#sip-end');
+  // Calendar popup on month inputs
   [startEl, endEl].forEach(el => {
     if (!el) return;
-    el.addEventListener('click', () => {
-      try { el.showPicker(); } catch (_) { /* unsupported browser */ }
-    });
+    el.addEventListener('click', () => { try { el.showPicker(); } catch (_) {} });
   });
 
-  // Submit handler
+  // â”€â”€ Submit handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   container.querySelector('#sip-add-form').addEventListener('submit', (e) => {
     e.preventDefault();
-    const type          = typeSel.value;
-    const name          = container.querySelector('#sip-name').value.trim();
-    const monthlyAmount = parseIndian(amtEl.value);
-    const rateInput     = parseFloat(rateEl.value);
-    const annualRate    = isNaN(rateInput) || rateInput <= 0
+    const type           = typeSel.value;
+    const name           = container.querySelector('#sip-name').value.trim();
+    const monthlyAmount  = parseIndian(amtEl.value);
+    const rateInput      = parseFloat(rateEl.value);
+    const annualRate     = isNaN(rateInput) || rateInput <= 0
       ? (SIP_TYPES.find(t => t.key === type)?.rate ?? 0.10)
       : rateInput / 100;
-    const linkType      = linkTypeSel.value || null;
-    const linkedGoalId  = linkType === 'goal'  ? (goalSel.value || null)                                    : null;
-    const linkedAssetKey= linkType === 'asset' ? (container.querySelector('#sip-asset').value || null) : null;
-    const startDate     = startEl.value;
-    const endDate       = endEl.value || '';
+    const linkType       = linkTypeSel.value || null;
+    const linkedGoalId   = linkType === 'goal'  ? (goalSel.value || null) : null;
+    const linkedAssetKey = linkType === 'asset' ? (container.querySelector('#sip-asset').value || null) : null;
+    const startDate      = startEl.value;
+    const endDate        = endEl.value || '';
 
     if (!name || !monthlyAmount) return;
 
     if (_editingId) {
-      // Update existing entry in-place
       const idx = savings.findIndex(s => s.id === _editingId);
       if (idx !== -1) {
         savings[idx] = { ...savings[idx], type, name, monthlyAmount, annualRate, linkType, linkedGoalId, linkedAssetKey, startDate, endDate };
       }
-      onUpdate('activeSavings', [...savings]);
-      renderTable(container, savings, goals, enterEditMode);
-      updateSummary(container, savings);
-      const badge = container.querySelector('#sip-count-badge');
-      if (badge) badge.textContent = `(${savings.length})`;
-      exitEditMode();
-      return;
+    } else {
+      savings.push({ id: crypto.randomUUID(), type, name, monthlyAmount, annualRate, linkType, linkedGoalId, linkedAssetKey, startDate, endDate });
     }
 
-    const newSip = {
-      id: crypto.randomUUID(),
-      type,
-      name,
-      monthlyAmount,
-      annualRate,
-      linkType,
-      linkedGoalId,
-      linkedAssetKey,
-      startDate,
-      endDate,
-    };
-
-    savings.push(newSip);
     onUpdate('activeSavings', [...savings]);
-
     renderTable(container, savings, goals, enterEditMode);
     updateSummary(container, savings);
-
     const badge = container.querySelector('#sip-count-badge');
-    if (badge) badge.textContent = `(${savings.length})`;
-
-    e.target.reset();
-    amtEl.value  = '';
-    startEl.value = thisMonth;
-    // Reset link UI
-    goalWrap.classList.add('hidden');
-    assetWrap.classList.add('hidden');
-    // Restore default rate for first type
-    const firstType = SIP_TYPES[0];
-    rateEl.value = (firstType.rate * 100).toFixed(1);
-    rateHint.textContent = `Default: ${(firstType.rate * 100).toFixed(1)}% for this type`;
+    if (badge) badge.textContent = `${savings.length} active`;
+    closeModal();
   });
 
-  // Proxy delete events: after renderTable re-renders, also fire onUpdate
+  // Proxy delete â€” fire onUpdate after table re-renders
   container.addEventListener('click', (e) => {
     if (e.target.closest('.btn-delete-sip')) {
       setTimeout(() => {
         onUpdate('activeSavings', [...savings]);
         const badge = container.querySelector('#sip-count-badge');
-        if (badge) badge.textContent = `(${savings.length})`;
+        if (badge) badge.textContent = `${savings.length} active`;
       }, 0);
     }
   });
 }
-
