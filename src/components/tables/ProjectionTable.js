@@ -90,6 +90,7 @@ function _renderPage(page) {
       <td class="px-3 py-2 text-xs text-right ${isGoalYear ? 'text-yellow-300 font-semibold' : 'text-slate-500'}">${r.goalOutlays > 0 ? formatCompact(r.goalOutlays) : '—'}</td>
       <td class="px-3 py-2 text-xs text-right text-slate-400">${formatCompact(r.totalExpenses)}</td>
       <td class="px-3 py-2 text-xs text-right ${surplusClass}">${formatCompact(surplus)}</td>
+      <td class="px-3 py-2 text-xs text-right text-emerald-400 font-medium">${r.sipContributions > 0 ? formatCompact(r.sipContributions) : '<span class="text-slate-600">—</span>'}</td>
       <td class="px-3 py-2 text-xs text-right text-emerald-300">${formatCompact(r.interestAccrued)}</td>
       <td class="px-3 py-2 text-xs text-right font-semibold ${isNegative ? 'text-red-400' : 'text-white'}">${formatRupee(Math.round(r.closingBalance))}</td>
     </tr>`;
@@ -107,6 +108,7 @@ function _renderPage(page) {
           <th class="px-3 py-2 font-medium text-right">Goal Outlay</th>
           <th class="px-3 py-2 font-medium text-right">Total Exp</th>
           <th class="px-3 py-2 font-medium text-right">Surplus</th>
+          <th class="px-3 py-2 font-medium text-right text-emerald-400">SIP Invest</th>
           <th class="px-3 py-2 font-medium text-right">Interest</th>
           <th class="px-3 py-2 font-medium text-right">Closing Balance</th>
         </tr>
@@ -141,9 +143,10 @@ function _updatePagination() {
 export function exportCSV(rows) {
   // Phase 3 — full implementation
   const headers = [
-    'Year', 'Age', 'Opening Balance (₹)', 'Annual Income (₹)',
-    'Lifestyle Expenses (₹)', 'Medical Expenses (₹)', 'Goal Outlays (₹)',
-    'Total Expenses (₹)', 'Net Surplus (₹)', 'Interest Accrued (₹)', 'Closing Balance (₹)',
+    'Year', 'Age', 'Opening Balance (₹)',
+    'Annual Income (₹)', 'Lifestyle Expenses (₹)', 'Medical Expenses (₹)',
+    'Goal Outlays (₹)', 'Total Expenses (₹)', 'Net Surplus (₹)',
+    'SIP Contributions (₹)', 'Interest Accrued (₹)', 'Closing Balance (₹)',
   ];
 
   const csvContent = [
@@ -153,8 +156,8 @@ export function exportCSV(rows) {
       Math.round(r.openingBalance), Math.round(r.annualIncome),
       Math.round(r.lifestyleExpenses), Math.round(r.medicalExpenses),
       Math.round(r.goalOutlays), Math.round(r.totalExpenses),
-      Math.round(r.netSurplus), Math.round(r.interestAccrued),
-      Math.round(r.closingBalance),
+      Math.round(r.netSurplus), Math.round(r.sipContributions ?? 0),
+      Math.round(r.interestAccrued), Math.round(r.closingBalance),
     ].join(','))
   ].join('\n');
 

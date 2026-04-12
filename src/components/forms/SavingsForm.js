@@ -108,7 +108,7 @@ function endDateDisplay(sip, goals) {
   return '—';
 }
 
-function renderTable(container, savings, goals) {
+function renderTable(container, savings, goals, onEdit) {
   const tableWrap = container.querySelector('#sip-table-wrap');
   if (!tableWrap) return;
 
@@ -148,7 +148,10 @@ function renderTable(container, savings, goals) {
               <td class="py-2.5 pr-3 text-right text-slate-300">${(rate * 100).toFixed(1)}%</td>
               <td class="py-2.5 pr-3 text-xs">${linkLabel(s, goals)}</td>
               <td class="py-2.5 pr-3 text-xs text-slate-400">${endDateDisplay(s, goals)}</td>
-              <td class="py-2.5 text-right">
+              <td class="py-2.5 text-right flex items-center justify-end gap-1">
+                <button class="btn-edit-sip icon-btn text-slate-500 hover:text-brand" data-id="${s.id}" aria-label="Edit">
+                  <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                </button>
                 <button class="btn-delete-sip icon-btn text-slate-500 hover:text-red-400" data-id="${s.id}" aria-label="Remove">
                   <svg class="w-4 h-4 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                 </button>
@@ -164,8 +167,16 @@ function renderTable(container, savings, goals) {
       const id = btn.dataset.id;
       const updated = savings.filter(s => s.id !== id);
       savings.splice(0, savings.length, ...updated);
-      renderTable(container, savings, goals);
+      renderTable(container, savings, goals, onEdit);
       updateSummary(container, savings);
+    });
+  });
+
+  tableWrap.querySelectorAll('.btn-edit-sip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const sip = savings.find(s => s.id === id);
+      if (sip && onEdit) onEdit(sip);
     });
   });
 }
@@ -300,8 +311,63 @@ export function mountSavingsForm(container, state, onUpdate) {
     </div>
   `;
 
+  // ── Edit state ──────────────────────────────────────────────
+  let _editingId = null; // null = add mode; string = edit mode
+
+  const formCard     = container.querySelector('.card');
+  const formTitle    = container.querySelector('.card h3');
+  const submitBtn    = container.querySelector('#sip-add-form button[type="submit"]');
+
+  function enterEditMode(sip) {
+    _editingId = sip.id;
+    // Update form header
+    if (formTitle) formTitle.innerHTML = `
+      <span class="w-2.5 h-2.5 rounded-full bg-brand inline-block"></span>
+      Edit Investment
+      <button type="button" id="sip-cancel-edit" class="ml-auto text-xs text-slate-400 hover:text-white font-normal underline underline-offset-2">Cancel</button>`;
+    // Update submit button
+    if (submitBtn) {
+      submitBtn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Update Investment`;
+    }
+    // Populate form fields
+    typeSel.value     = sip.type;
+    typeSel.dispatchEvent(new Event('change')); // trigger rate auto-fill
+    container.querySelector('#sip-name').value = sip.name || '';
+    amtEl.value       = indianFormat(sip.monthlyAmount);
+    const defRate     = SIP_TYPES.find(t => t.key === sip.type)?.rate ?? 0.10;
+    rateEl.value      = ((sip.annualRate ?? defRate) * 100).toFixed(1);
+    linkTypeSel.value = sip.linkType || '';
+    linkTypeSel.dispatchEvent(new Event('change'));
+    if (sip.linkType === 'goal')  goalSel.value = sip.linkedGoalId  || '';
+    if (sip.linkType === 'asset') container.querySelector('#sip-asset').value = sip.linkedAssetKey || '';
+    startEl.value     = sip.startDate  || thisMonth;
+    endEl.value       = sip.endDate    || '';
+    // Wire cancel button
+    container.querySelector('#sip-cancel-edit')?.addEventListener('click', exitEditMode);
+    // Scroll form into view
+    formCard?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function exitEditMode() {
+    _editingId = null;
+    if (formTitle) formTitle.innerHTML = `
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 inline-block"></span>
+      Add Investment`;
+    if (submitBtn) {
+      submitBtn.innerHTML = `<svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg> Add Investment`;
+    }
+    container.querySelector('#sip-add-form').reset();
+    amtEl.value   = '';
+    startEl.value = thisMonth;
+    goalWrap.classList.add('hidden');
+    assetWrap.classList.add('hidden');
+    const firstType = SIP_TYPES[0];
+    rateEl.value = (firstType.rate * 100).toFixed(1);
+    rateHint.textContent = `Default: ${(firstType.rate * 100).toFixed(1)}% for this type`;
+  }
+
   // Initial table render
-  renderTable(container, savings, goals);
+  renderTable(container, savings, goals, enterEditMode);
 
   // Indian comma formatting on amount input
   const amtEl  = container.querySelector('#sip-amount');
@@ -370,6 +436,21 @@ export function mountSavingsForm(container, state, onUpdate) {
 
     if (!name || !monthlyAmount) return;
 
+    if (_editingId) {
+      // Update existing entry in-place
+      const idx = savings.findIndex(s => s.id === _editingId);
+      if (idx !== -1) {
+        savings[idx] = { ...savings[idx], type, name, monthlyAmount, annualRate, linkType, linkedGoalId, linkedAssetKey, startDate, endDate };
+      }
+      onUpdate('activeSavings', [...savings]);
+      renderTable(container, savings, goals, enterEditMode);
+      updateSummary(container, savings);
+      const badge = container.querySelector('#sip-count-badge');
+      if (badge) badge.textContent = `(${savings.length})`;
+      exitEditMode();
+      return;
+    }
+
     const newSip = {
       id: crypto.randomUUID(),
       type,
@@ -386,7 +467,7 @@ export function mountSavingsForm(container, state, onUpdate) {
     savings.push(newSip);
     onUpdate('activeSavings', [...savings]);
 
-    renderTable(container, savings, goals);
+    renderTable(container, savings, goals, enterEditMode);
     updateSummary(container, savings);
 
     const badge = container.querySelector('#sip-count-badge');

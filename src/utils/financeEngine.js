@@ -187,17 +187,26 @@ export function buildCorpusTrajectory(inputs) {
         const linked = goals.find(g => g.id === sip.linkedGoalId);
         if (linked?.targetYear) endYYYYMM = `${linked.targetYear}-12`;
       }
-      if (!endYYYYMM) return sum; // no end date — skip for trajectory
-      const [ey, em] = endYYYYMM.split('-').map(Number);
-      // Is this calendar year within [start, end] range?
-      const yearStart = calendarYear * 12 + 1;
-      const yearEnd   = calendarYear * 12 + 12;
-      const sipStart  = sy * 12 + sm;
-      const sipEnd    = ey * 12 + em;
-      if (sipEnd < yearStart || sipStart > yearEnd) return sum;
-      const activeMonths = Math.min(sipEnd, yearEnd) - Math.max(sipStart, yearStart) + 1;
-      return sum + sip.monthlyAmount * Math.max(0, activeMonths);
-    }, 0);
+
+        const yearStart = calendarYear * 12 + 1;
+        const yearEnd   = calendarYear * 12 + 12;
+        const sipStart  = sy * 12 + sm;
+
+        // Hasn't started yet in this calendar year
+        if (sipStart > yearEnd) return sum;
+
+        if (endYYYYMM) {
+          const [ey, em] = endYYYYMM.split('-').map(Number);
+          const sipEnd   = ey * 12 + em;
+          if (sipEnd < yearStart) return sum; // already ended
+          const activeMonths = Math.min(sipEnd, yearEnd) - Math.max(sipStart, yearStart) + 1;
+          return sum + sip.monthlyAmount * Math.max(0, activeMonths);
+        } else {
+          // No end date — SIP runs indefinitely (wealth-building)
+          const activeMonths = yearEnd - Math.max(sipStart, yearStart) + 1;
+          return sum + sip.monthlyAmount * Math.max(0, activeMonths);
+        }
+      }, 0);
 
     // Portfolio grows at blended CAGR on opening balance
     const interestAccrued = openingBalance * cagr;
