@@ -27,9 +27,10 @@ node node_modules/vite/bin/vite.js build
 Use conventional commits with a scope:
 
 ```
-feat(expenses): categorised expense breakdown with add/remove
-fix(auth): add user dropdown with logout button, wire fbSignOut
-feat(phase5): Firebase Auth + Firestore + Gemini AI + PDF export
+feat(investments): rename tab, user-editable rate, calendar popups, SIPs in trajectory
+fix(investments): include activeSavings in Firestore save payload
+feat(autosave): auto-save to Firestore every 10s on dirty state
+feat(routing): hash-based navigation persists section and sub-tab across refreshes
 ```
 
 Push to `origin main` after every feature/fix.
@@ -39,11 +40,20 @@ Push to `origin main` after every feature/fix.
 All state lives in the single `state` object in `main.js`. Mutations must go through:
 
 ```js
-updateState({ field: value });      // triggers debounced recalculate()
+updateState({ field: value });      // sets _isDirty = true, triggers debounced recalculate()
 // recalculate() → buildCorpusTrajectory() → compareTaxRegimes() → updateAllUI()
 ```
 
 Never mutate `state` directly outside `updateState()`.
+
+### Dirty Flag & Auto-Save
+
+```js
+let _isDirty = false;       // set true by updateState(), reset after successful auto-save
+let _autoSaveTimer = null;  // setInterval handle, 10s cadence
+```
+
+Auto-save runs every 10 seconds. It only fires when `_isDirty && state.uid && isFirebaseConfigured`. Shows `Auto-saved HH:MM` in `#autosave-status` span — no toast.
 
 ## Component Pattern — Forms
 
@@ -75,9 +85,49 @@ if (!isFirebaseConfigured || !auth) return null;   // graceful degradation
 
 The app must remain fully functional offline (no Firebase errors shown to user).
 
+### Firestore Schema
+
+```
+/Users/{uid}/FinVision/data/Personal_Details/profile   ← all plan state (single doc)
+/Users/{uid}/FinVision/data/Financial_Plans/{planId}   ← named plan scenarios
+/Users/{uid}/FinVision/data/AI_Summaries/latest        ← cached AI summary
+```
+
+- Path is always 6 segments (even) — `Users/{uid}/FinVision/data/{sub}/{docId}`
+- Firestore rules use capital-U `Users`: `match /Users/{userId}/{document=**}`
+- **All fields saved to `Personal_Details/profile`** must be explicitly listed in the `savePersonalDetails()` call — missing fields are lost on reload. Current saved fields include `activeSavings`.
+
+### Data Load on Login
+
+After `loadPersonalDetails()` returns, call `mountAllForms()` then `recalculate()` so loaded values render into the UI:
+
+```js
+Object.assign(state, saved);
+mountAllForms();
+recalculate();
+```
+
 ## Duplicate Export Rule
 
 When implementing a stub file, **delete the old stub functions in the same pass** — never leave two `export function foo()` declarations in the same file. Vite 8 / Rolldown treats duplicate exports as a hard parse error.
+
+## Hash-Based Routing
+
+Navigation state is persisted in the URL hash so the user returns to the same page on refresh.
+
+```js
+// Format: #sectionId  or  #inputs/subTabId
+navigateTo('inputs', 'assets');  // → sets location.hash = 'inputs/assets'
+switchInputSubSection('goals');  // → updates hash to 'inputs/goals'
+```
+
+On `initApp()`, the hash is read and `navigateTo()` is called to restore the last view. The valid sections are:
+
+```js
+const SECTIONS = ['dashboard', 'inputs', 'projections', 'tax', 'ai', 'reports'];
+```
+
+Input sub-tabs: `personal`, `assets`, `expenses`, `goals`, `savings` (note: "savings" is the panel id even though the tab label is "Investments").
 
 ## Code Style
 
@@ -89,25 +139,27 @@ When implementing a stub file, **delete the old stub functions in the same pass*
 
 ## Development Phases
 
-Work strictly phase-by-phase. Do not start the next phase without explicit user approval.
+All phases complete. Feature additions are incremental — no phase gating required.
 
-| Phase | Scope |
-|-------|-------|
-| 1 | Scaffold, Vite config, Tailwind |
-| 2 | `financeEngine.js` + `taxEngine.js` |
-| 3 | All 4 input form components |
-| 4 | Charts (CorpusChart, AllocationChart, ExpenseChart) + ProjectionTable |
-| 5 | Firebase Auth + Firestore + Gemini AI + PDF export |
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Scaffold, Vite config, Tailwind | ✅ |
+| 2 | `financeEngine.js` + `taxEngine.js` | ✅ |
+| 3 | All 4 input form components | ✅ |
+| 4 | Charts (CorpusChart, AllocationChart, ExpenseChart) + ProjectionTable | ✅ |
+| 5 | Firebase Auth + Firestore + Gemini AI + PDF export | ✅ |
+| 6 | Investments tab, auto-save, hash routing | ✅ |
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/main.js` | Bootstrap, state, all event binding |
-| `src/components/forms/PersonalDetailsForm.js` | Name, DOB, retirement age, income, salary raise |
-| `src/components/forms/AssetsForm.js` | 12 debt + 10 equity Indian asset categories with tooltips |
-| `src/components/forms/ExpensesForm.js` | Categorised monthly expenses + medical + EMI |
+| `src/main.js` | Bootstrap, state, all event binding, auto-save interval, hash routing |
+| `src/components/forms/PersonalDetailsForm.js` | Name (auto-filled from Google account), DOB (calendar popup on click), retirement age, income, salary raise |
+| `src/components/forms/AssetsForm.js` | 4 ALM groups: debt, equity, real assets, cash — with tooltips |
+| `src/components/forms/ExpensesForm.js` | 6 categorised expense cards + medical + EMI |
 | `src/components/forms/GoalsForm.js` | Life goals with type, target year, today's value |
+| `src/components/forms/SavingsForm.js` | **Investments tab** — recurring SIPs/RDs/PPF/NPS with user-editable rate, goal/asset linking, calendar month pickers |
 | `src/components/charts/CorpusChart.js` | Corpus growth area chart |
 | `src/components/charts/AllocationChart.js` | Asset allocation doughnut chart |
 | `src/components/charts/ExpenseChart.js` | Expense breakdown pie chart |
@@ -117,12 +169,48 @@ Work strictly phase-by-phase. Do not start the next phase without explicit user 
 | `src/firebase/firestore.js` | Firestore CRUD for plans + AI summaries |
 | `src/ai/aiAdvisor.js` | Gemini 2.0-flash dual-path (SDK + REST fallback) |
 | `src/components/reports/PDFExport.js` | jsPDF + html2canvas multi-page report |
-| `src/utils/constants.js` | `DEFAULTS`, `APP`, `INFLATION`, `GOAL_TYPES` constants |
-| `src/utils/financeEngine.js` | `buildCorpusTrajectory()` core projection |
+| `src/utils/constants.js` | `DEFAULTS`, `APP`, `INFLATION`, `GOAL_TYPES`, `SIP_TYPES`, `sipRate()` constants |
+| `src/utils/financeEngine.js` | `buildCorpusTrajectory()` (includes SIP contributions), `computeSIPGoalFunding()`, `sipFutureValue()` |
 | `src/utils/taxEngine.js` | `compareTaxRegimes()` old vs new regime |
 | `src/utils/formatters.js` | `formatRupee()`, `formatCompact()` Indian currency |
 | `src/styles/main.css` | Design tokens, form CSS, tooltips, dark theme overrides |
 | `.env.local` | Firebase + Gemini secrets (gitignored) |
+
+## Investments Tab (SavingsForm)
+
+The 5th input tab (`data-sub="savings"`, panel id `inputs-sub-savings`) lets users track recurring investments.
+
+### Data model per entry (`state.activeSavings[]`)
+
+```js
+{
+  id:             crypto.randomUUID(),
+  type:           'MF_SIP' | 'RD' | 'PPF' | 'NPS',
+  name:           string,
+  monthlyAmount:  number,          // ₹ per month
+  annualRate:     number,          // decimal e.g. 0.13 — user-overridable, defaults to sipRate(type)
+  linkType:       'goal' | 'asset' | null,
+  linkedGoalId:   string | null,   // used when linkType === 'goal'
+  linkedAssetKey: string | null,   // used when linkType === 'asset'
+  startDate:      'YYYY-MM',
+  endDate:        'YYYY-MM' | null,
+}
+```
+
+### SIP_TYPES (in `constants.js`)
+
+```js
+{ key: 'MF_SIP', label: 'Mutual Fund SIP', defaultRate: 0.13 }
+{ key: 'RD',     label: 'Recurring Deposit', defaultRate: 0.07 }
+{ key: 'PPF',    label: 'PPF',               defaultRate: 0.071 }
+{ key: 'NPS',    label: 'NPS',               defaultRate: 0.10 }
+```
+
+### Engine integration
+
+- `buildCorpusTrajectory()` accepts `activeSavings` — adds monthly SIP contributions to each year's closing balance
+- `computeSIPGoalFunding(activeSavings, goals, planStartYear)` returns a `Map<goalId, {name, sipContrib, goalInflatedCost, deficit}>`
+- `sipFutureValue(monthlyAmount, annualRate, months)` — standard annuity FV formula
 
 ## UI / UX Conventions
 
@@ -158,6 +246,17 @@ Every form tab uses this identical structure:
 
 Colors: `bg-brand` (amber), `bg-blue-400` (debt), `bg-emerald-400` (income), `bg-rose-400` (expenses).
 
+### Auto-Save Status
+
+The Save Plan button area has a sibling `#autosave-status` span that shows the last auto-save time. It is hidden by default and shown after first successful auto-save:
+
+```html
+<div class="flex items-center gap-3">
+  <span id="autosave-status" class="text-xs text-slate-500 hidden"></span>
+  <button id="btn-save-plan" ...>Save Plan</button>
+</div>
+```
+
 ### Indian Number Formatting
 
 All ₹ inputs use `type="text" inputmode="numeric"` with focus/blur formatting:
@@ -175,9 +274,10 @@ Helper functions `indianFormat(n)` / `parseIndian(str)` are defined locally in e
 </div>
 ```
 
-### Date Input
+### Date / Month Input
 
-Uses `color-scheme: dark` for dark calendar popup. Selected date text is white with full opacity. Calendar icon uses amber/gold tint on hover.
+- **Date** (`type="date"`): Uses `color-scheme: dark` for dark calendar popup. `showPicker()` called on click for immediate popup.
+- **Month** (`type="month"`): Same `color-scheme: dark` + `showPicker()` on click (used in Investments form for start/end date).
 
 ### Select Dropdown
 
