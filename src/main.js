@@ -1225,6 +1225,7 @@ function bindEvents() {
         monthlyEMI: state.monthlyEMI,
         expenseCategories: state.expenseCategories,
         goals: state.goals,
+        activeSavings: state.activeSavings ?? [],
         taxInputs: state.taxInputs,
         planHealth: state.planHealth,
       });
@@ -1253,6 +1254,7 @@ function bindEvents() {
         currentEPF: state.currentEPF, monthlyExpenses: state.monthlyExpenses,
         monthlyMedicalPremium: state.monthlyMedicalPremium, monthlyEMI: state.monthlyEMI,
         retirementAge: state.retirementAge, goals: state.goals,
+        activeSavings: state.activeSavings ?? [],
         taxInputs: state.taxInputs, planHealth: state.planHealth,
       });
       showToast('Plan saved to cloud ✓', 'success');
