@@ -130,6 +130,8 @@ const state = {
 ═════════════════════════════════════════════════════════════ */
 
 let _recalcTimer = null;
+let _isDirty     = false;
+let _autoSaveTimer = null;
 
 /**
  * Update one or more state fields and trigger recalculation.
@@ -137,6 +139,7 @@ let _recalcTimer = null;
  */
 function updateState(patch) {
   Object.assign(state, patch);
+  _isDirty = true;
   scheduleRecalculation();
 }
 
@@ -1371,6 +1374,41 @@ function initApp() {
 
   // Run initial calculation with defaults
   recalculate();
+
+  // Auto-save every 10 seconds when signed in and data has changed
+  _autoSaveTimer = setInterval(async () => {
+    if (!_isDirty || !state.uid || !isFirebaseConfigured) return;
+    try {
+      await savePersonalDetails(state.uid, {
+        name: state.name, dob: state.dob, currentAge: state.currentAge,
+        retirementAge: state.retirementAge, monthlyIncome: state.monthlyIncome,
+        salaryRaiseRate: state.salaryRaiseRate,
+        equityPercent: state.equityPercent, debtPercent: state.debtPercent,
+        realAssetsPercent: state.realAssetsPercent, cashPercent: state.cashPercent,
+        currentEquity: state.currentEquity, currentDebt: state.currentDebt,
+        currentEPF: state.currentEPF, currentGold: state.currentGold,
+        currentRealEstate: state.currentRealEstate, currentCash: state.currentCash,
+        currentAlternatives: state.currentAlternatives,
+        assetAllocation: state.assetAllocation,
+        monthlyExpenses: state.monthlyExpenses,
+        monthlyMedicalPremium: state.monthlyMedicalPremium,
+        monthlyEMI: state.monthlyEMI,
+        expenseCategories: state.expenseCategories,
+        goals: state.goals,
+        activeSavings: state.activeSavings ?? [],
+        taxInputs: state.taxInputs,
+        planHealth: state.planHealth,
+      });
+      _isDirty = false;
+      const statusEl = document.getElementById('autosave-status');
+      if (statusEl) {
+        statusEl.textContent = `Auto-saved ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}`;
+        statusEl.classList.remove('hidden');
+      }
+    } catch (_) {
+      // Silent — auto-save failures should not interrupt the user
+    }
+  }, 10_000);
 
   // Show Firebase config warning if not set
   if (!isFirebaseConfigured) {
