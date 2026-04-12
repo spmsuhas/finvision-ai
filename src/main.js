@@ -1389,30 +1389,34 @@ function initApp() {
     }
   })();
 
-  // Auto-save every 10 seconds when signed in and data has changed
-  _autoSaveTimer = setInterval(async () => {
+  // Auto-save every 10 seconds when signed in and data has changed.
+  // Uses requestIdleCallback so the work is deferred to browser idle time
+  // and never runs on the main thread while the user is interacting.
+  const _runAutoSave = async () => {
     if (!_isDirty || !state.uid || !isFirebaseConfigured) return;
+    // Snapshot state now (before the async gap) so in-flight changes don't corrupt the payload
+    const payload = {
+      name: state.name, dob: state.dob, currentAge: state.currentAge,
+      retirementAge: state.retirementAge, monthlyIncome: state.monthlyIncome,
+      salaryRaiseRate: state.salaryRaiseRate,
+      equityPercent: state.equityPercent, debtPercent: state.debtPercent,
+      realAssetsPercent: state.realAssetsPercent, cashPercent: state.cashPercent,
+      currentEquity: state.currentEquity, currentDebt: state.currentDebt,
+      currentEPF: state.currentEPF, currentGold: state.currentGold,
+      currentRealEstate: state.currentRealEstate, currentCash: state.currentCash,
+      currentAlternatives: state.currentAlternatives,
+      assetAllocation: state.assetAllocation,
+      monthlyExpenses: state.monthlyExpenses,
+      monthlyMedicalPremium: state.monthlyMedicalPremium,
+      monthlyEMI: state.monthlyEMI,
+      expenseCategories: state.expenseCategories,
+      goals: state.goals,
+      activeSavings: state.activeSavings ?? [],
+      taxInputs: state.taxInputs,
+      planHealth: state.planHealth,
+    };
     try {
-      await savePersonalDetails(state.uid, {
-        name: state.name, dob: state.dob, currentAge: state.currentAge,
-        retirementAge: state.retirementAge, monthlyIncome: state.monthlyIncome,
-        salaryRaiseRate: state.salaryRaiseRate,
-        equityPercent: state.equityPercent, debtPercent: state.debtPercent,
-        realAssetsPercent: state.realAssetsPercent, cashPercent: state.cashPercent,
-        currentEquity: state.currentEquity, currentDebt: state.currentDebt,
-        currentEPF: state.currentEPF, currentGold: state.currentGold,
-        currentRealEstate: state.currentRealEstate, currentCash: state.currentCash,
-        currentAlternatives: state.currentAlternatives,
-        assetAllocation: state.assetAllocation,
-        monthlyExpenses: state.monthlyExpenses,
-        monthlyMedicalPremium: state.monthlyMedicalPremium,
-        monthlyEMI: state.monthlyEMI,
-        expenseCategories: state.expenseCategories,
-        goals: state.goals,
-        activeSavings: state.activeSavings ?? [],
-        taxInputs: state.taxInputs,
-        planHealth: state.planHealth,
-      });
+      await savePersonalDetails(state.uid, payload);
       _isDirty = false;
       const statusEl = document.getElementById('autosave-status');
       if (statusEl) {
@@ -1420,7 +1424,17 @@ function initApp() {
         statusEl.classList.remove('hidden');
       }
     } catch (_) {
-      // Silent — auto-save failures should not interrupt the user
+      // Silent — auto-save failures must not interrupt the user
+    }
+  };
+
+  _autoSaveTimer = setInterval(() => {
+    if (!_isDirty || !state.uid || !isFirebaseConfigured) return;
+    // Schedule during idle time so the UI thread is never blocked
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => _runAutoSave(), { timeout: 4000 });
+    } else {
+      setTimeout(_runAutoSave, 0);
     }
   }, 10_000);
 
