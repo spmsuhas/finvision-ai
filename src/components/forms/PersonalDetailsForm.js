@@ -164,4 +164,12 @@ export function mountPersonalDetailsForm(container, state, onUpdate) {
   bind('inp-retirement-age', 'retirementAge',  v => parseInt(v, 10));
   bind('inp-monthly-income', 'monthlyIncome');
   bind('inp-salary-raise',   'salaryRaiseRate', v => parseFloat(v) / 100);
+
+  // Open calendar popup on any click on the DOB field
+  const dobInput = container.querySelector('#inp-dob');
+  if (dobInput) {
+    dobInput.addEventListener('click', () => {
+      try { dobInput.showPicker(); } catch (_) { /* unsupported browser */ }
+    });
+  }
 }

@@ -287,6 +287,22 @@ export const CHART_COLORS = Object.freeze({
 });
 
 /* ─────────────────────────────────────────────────────────────
+   SIP / ACTIVE SAVINGS RETURN RATES
+   Maps investment type keys to annual return rates (decimal).
+───────────────────────────────────────────────────────────── */
+export const SIP_TYPES = Object.freeze([
+  { key: 'MF_SIP', label: 'Mutual Fund SIP',   rate: 0.13  },
+  { key: 'RD',     label: 'Recurring Deposit', rate: 0.07  },
+  { key: 'PPF',    label: 'PPF Contribution',  rate: 0.071 },
+  { key: 'NPS',    label: 'NPS',               rate: 0.10  },
+]);
+
+/** Look up annual return rate for a given SIP type key. */
+export function sipRate(typeKey) {
+  return SIP_TYPES.find(t => t.key === typeKey)?.rate ?? 0.10;
+}
+
+/* ─────────────────────────────────────────────────────────────
    FIRESTORE COLLECTION NAMES
 ───────────────────────────────────────────────────────────── */
 export const FIRESTORE = Object.freeze({

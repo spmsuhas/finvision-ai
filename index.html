@@ -240,6 +240,11 @@
         Life Goals
         <span id="sidebar-goals-count" class="sidebar-badge bg-brand/20 text-brand">0</span>
       </button>
+      <button class="sidebar-link" data-section="inputs" data-sub="savings">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Investments
+        <span id="sidebar-sips-count" class="sidebar-badge bg-emerald-500/20 text-emerald-400">0</span>
+      </button>
 
       <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Analysis</p>
       <button class="sidebar-link" data-section="projections">
@@ -464,6 +469,10 @@
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
           Goals
         </button>
+        <button class="input-tab" data-sub="savings">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          Investments
+        </button>
       </div>
 
       <!-- Personal Details Sub-panel -->
@@ -484,6 +493,24 @@
       <!-- Goals Sub-panel -->
       <div id="inputs-sub-goals" class="input-sub-panel hidden space-y-6">
         <div id="form-goals"></div><!-- Populated by GoalsForm.js -->
+      </div>
+
+      <!-- Savings & SIPs Sub-panel -->
+      <div id="inputs-sub-savings" class="input-sub-panel hidden space-y-6">
+        <div id="form-savings"></div><!-- Populated by SavingsForm.js -->
+        <!-- Goal Tracking Chart -->
+        <div class="card max-w-5xl mx-auto">
+          <div class="card-header">
+            <h3 class="card-title flex items-center gap-2 text-base">
+              <span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>
+              Goal Funding Tracker
+            </h3>
+            <p class="text-xs text-slate-500">Corpus Allocated · SIP Contributions · Remaining Deficit</p>
+          </div>
+          <div class="chart-container" style="height:260px;">
+            <canvas id="chart-goal-tracking"></canvas>
+          </div>
+        </div>
       </div>
     </section>
 

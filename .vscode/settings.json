@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "/^cd \"d:\\\\Technical\\\\Development Workspace\\\\Project Fin\"; node node_modules/vite/bin/vite\\.js$/": {
+            "approve": true,
+            "matchCommandLine": true
+        }
+    }
+}

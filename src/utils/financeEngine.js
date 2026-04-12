@@ -16,7 +16,7 @@
  *   • calculatePlanHealth(trajectory, goals) → 0–100 score
  */
 
-import { INFLATION, CORPUS, GOAL_TYPES, blendedReturn, almBlendedReturn } from './constants.js';
+import { INFLATION, CORPUS, GOAL_TYPES, blendedReturn, almBlendedReturn, sipRate } from './constants.js';
 
 /**
  * @typedef {Object} PersonalInputs
@@ -127,7 +127,8 @@ export function buildCorpusTrajectory(inputs) {
     monthlyExpenses,
     monthlyMedicalPremium,
     planStartYear,
-    goals = [],
+    goals         = [],
+    activeSavings = [],
   } = inputs;
 
   // Starting corpus = sum of ALL asset buckets across all 4 groups
@@ -177,9 +178,30 @@ export function buildCorpusTrajectory(inputs) {
     const totalExpenses = lifestyleExpenses + medicalExpenses + goalOutlays;
     const netSurplus    = annualIncomeThisYear - totalExpenses;
 
+    // Sum monthly SIP contributions active during this calendar year
+    const sipContributions = activeSavings.reduce((sum, sip) => {
+      if (!sip.monthlyAmount || sip.monthlyAmount <= 0) return sum;
+      const [sy, sm] = (sip.startDate || `${planStartYear}-01`).split('-').map(Number);
+      let endYYYYMM = sip.endDate;
+      if (!endYYYYMM && sip.linkType === 'goal' && sip.linkedGoalId) {
+        const linked = goals.find(g => g.id === sip.linkedGoalId);
+        if (linked?.targetYear) endYYYYMM = `${linked.targetYear}-12`;
+      }
+      if (!endYYYYMM) return sum; // no end date — skip for trajectory
+      const [ey, em] = endYYYYMM.split('-').map(Number);
+      // Is this calendar year within [start, end] range?
+      const yearStart = calendarYear * 12 + 1;
+      const yearEnd   = calendarYear * 12 + 12;
+      const sipStart  = sy * 12 + sm;
+      const sipEnd    = ey * 12 + em;
+      if (sipEnd < yearStart || sipStart > yearEnd) return sum;
+      const activeMonths = Math.min(sipEnd, yearEnd) - Math.max(sipStart, yearStart) + 1;
+      return sum + sip.monthlyAmount * Math.max(0, activeMonths);
+    }, 0);
+
     // Portfolio grows at blended CAGR on opening balance
     const interestAccrued = openingBalance * cagr;
-    const closingBalance  = openingBalance + interestAccrued + netSurplus;
+    const closingBalance  = openingBalance + interestAccrued + netSurplus + sipContributions;
 
     rows.push({
       calendarYear,
@@ -191,6 +213,7 @@ export function buildCorpusTrajectory(inputs) {
       goalOutlays,
       totalExpenses,
       netSurplus,
+      sipContributions,
       interestAccrued,
       closingBalance,
       isRetired,
@@ -255,4 +278,96 @@ export function calculatePlanHealth(trajectory, goals = []) {
   }
 
   return Math.round(Math.min(100, terminalScore + continuityScore + goalScore));
+}
+
+/**
+ * Future Value of an Annuity (end-of-period SIP payments).
+ * FV = PMT × ((1 + r_m)^n − 1) / r_m
+ *
+ * @param {number} monthlyAmount - Monthly SIP / contribution (₹)
+ * @param {number} annualRate    - Annual return rate (decimal, e.g. 0.13)
+ * @param {number} months        - Number of monthly contributions
+ * @returns {number} Projected future value (₹)
+ */
+export function sipFutureValue(monthlyAmount, annualRate, months) {
+  if (months <= 0 || monthlyAmount <= 0) return 0;
+  const rm = annualRate / 12;
+  if (rm === 0) return monthlyAmount * months;
+  return monthlyAmount * (Math.pow(1 + rm, months) - 1) / rm;
+}
+
+/**
+ * Compute per-goal SIP funding breakdown for Goal Tracking chart.
+ *
+ * @param {Array}  activeSavings  - state.activeSavings entries
+ * @param {Array}  goals          - state.goals entries
+ * @param {number} planStartYear  - Current calendar year (used for elapsed months)
+ * @returns {Map<string, {name, goalInflatedCost, sipContrib, deficit}>}
+ *          Key = goalId  (plus a synthetic key 'unlinked' for wealth-building SIPs)
+ */
+export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartYear = new Date().getFullYear()) {
+  const result = new Map();
+
+  // Pre-populate every goal entry so goals with no SIPs still appear
+  goals.forEach(g => {
+    const yearsAway = Math.max(0, g.targetYear - planStartYear);
+    const inflRate = g.inflationRate ?? INFLATION.GENERAL;
+    const goalInflatedCost = goalFutureValue(g.todayValue, inflRate, yearsAway);
+    result.set(g.id, {
+      name:             g.name,
+      targetYear:       g.targetYear,
+      goalInflatedCost,
+      sipContrib:       0,
+      deficit:          goalInflatedCost,
+    });
+  });
+
+  // Accumulate SIP future values into each goal bucket
+  activeSavings.forEach(sip => {
+    if (!sip.monthlyAmount || sip.monthlyAmount <= 0) return;
+
+    // Only goal-linked SIPs contribute to goal-deficit reduction
+    if (sip.linkType !== 'goal' && sip.linkType !== undefined && sip.linkType !== null && sip.linkedGoalId == null) {
+      // asset-linked or unlinked: skip goal tracking but accumulate as unlinked
+    }
+
+    // Determine effective end date
+    let endYYYYMM = sip.endDate;
+    if (!endYYYYMM && sip.linkType === 'goal' && sip.linkedGoalId) {
+      const linked = goals.find(g => g.id === sip.linkedGoalId);
+      if (linked?.targetYear) endYYYYMM = `${linked.targetYear}-12`;
+    }
+    if (!endYYYYMM) return; // no end date — skip FV calculation
+
+    const [startY, startM]  = (sip.startDate  || `${planStartYear}-01`).split('-').map(Number);
+    const [endY,   endM]    = endYYYYMM.split('-').map(Number);
+    const months = Math.max(0, (endY - startY) * 12 + (endM - startM));
+    if (months <= 0) return;
+
+    // Use user-supplied rate if set, otherwise default to type rate
+    const rate = (sip.annualRate && sip.annualRate > 0) ? sip.annualRate : sipRate(sip.type);
+    const fv   = sipFutureValue(sip.monthlyAmount, rate, months);
+
+    const goalId = (sip.linkType === 'goal' && sip.linkedGoalId) ? sip.linkedGoalId : 'unlinked';
+    if (result.has(goalId)) {
+      const entry = result.get(goalId);
+      entry.sipContrib += fv;
+      entry.deficit     = Math.max(0, entry.goalInflatedCost - entry.sipContrib);
+    } else if (goalId === 'unlinked') {
+      const existing = result.get('unlinked');
+      if (existing) {
+        existing.sipContrib += fv;
+      } else {
+        result.set('unlinked', {
+          name:             'Wealth Building',
+          targetYear:       null,
+          goalInflatedCost: 0,
+          sipContrib:       fv,
+          deficit:          0,
+        });
+      }
+    }
+  });
+
+  return result;
 }

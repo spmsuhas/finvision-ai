@@ -14,8 +14,9 @@
 
 import { DEFAULTS, APP, INFLATION, almBlendedReturn } from './utils/constants.js';
 import { formatRupee, formatCompact } from './utils/formatters.js';
-import { buildCorpusTrajectory, calculatePlanHealth } from './utils/financeEngine.js';
+import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding } from './utils/financeEngine.js';
 import { compareTaxRegimes } from './utils/taxEngine.js';
+import { Chart } from 'chart.js/auto';
 import { renderCorpusChart, renderCorpusPreview, destroyCorpusCharts } from './components/charts/CorpusChart.js';
 import { renderAllocationChart, destroyAllocationChart } from './components/charts/AllocationChart.js';
 import { renderExpenseChart, destroyExpenseChart } from './components/charts/ExpenseChart.js';
@@ -24,6 +25,7 @@ import { mountPersonalDetailsForm } from './components/forms/PersonalDetailsForm
 import { mountAssetsForm }         from './components/forms/AssetsForm.js';
 import { mountExpensesForm }        from './components/forms/ExpensesForm.js';
 import { mountGoalsForm }           from './components/forms/GoalsForm.js';
+import { mountSavingsForm }         from './components/forms/SavingsForm.js';
 import { generateExecutiveSummary, sendChatMessage } from './ai/aiAdvisor.js';
 import { generatePDFReport }       from './components/reports/PDFExport.js';
 import { onAuthStateChanged, signInWithGoogle, signInWithEmail, createAccount, signOut as fbSignOut, sendPasswordReset } from './firebase/auth.js';
@@ -110,6 +112,9 @@ const state = {
   // Goals
   goals: [],
 
+  // Active Savings & SIPs
+  activeSavings: [],
+
   // Plan metadata
   planStartYear:   DEFAULTS.PLAN_START_YEAR,
 
@@ -117,6 +122,7 @@ const state = {
   trajectory:      [],
   taxComparison:   null,
   planHealth:      0,
+  goalFunding:     new Map(),
 };
 
 /* ═════════════════════════════════════════════════════════════
@@ -169,11 +175,13 @@ function recalculate() {
       monthlyMedicalPremium: state.monthlyMedicalPremium,
       planStartYear:        state.planStartYear,
       goals:                state.goals,
+      activeSavings:        state.activeSavings ?? [],
     };
 
     state.trajectory    = buildCorpusTrajectory(inputs);
     state.taxComparison = compareTaxRegimes({ ...state.taxInputs, grossSalary: inputs.annualIncome });
     state.planHealth    = calculatePlanHealth(state.trajectory, state.goals);
+    state.goalFunding   = computeSIPGoalFunding(state.activeSavings, state.goals, state.planStartYear);
 
     updateAllUI();
     showRecalcIndicator(false);
@@ -192,8 +200,10 @@ function updateAllUI() {
   renderProjectionTable(state.trajectory);
   updateProjectionStats();
   updateSidebarGoalsCount();
+  updateSidebarSIPsCount();
   updateTaxSection();
   updateGoalsPreview();
+  renderGoalTrackingChart();
 }
 
 function updateDashboardKPIs() {
@@ -330,6 +340,81 @@ function updateProjectionStats() {
 function updateSidebarGoalsCount() {
   const el = document.getElementById('sidebar-goals-count');
   if (el) el.textContent = String(state.goals.length);
+}
+
+function updateSidebarSIPsCount() {
+  const el = document.getElementById('sidebar-sips-count');
+  if (el) el.textContent = String((state.activeSavings || []).length);
+}
+
+/* ─── Goal Tracking stacked bar chart ─────────────────────── */
+let _goalTrackingChart = null;
+
+function renderGoalTrackingChart() {
+  const canvas = document.getElementById('chart-goal-tracking');
+  if (!canvas) return;
+  const funding = state.goalFunding;
+  if (!funding || funding.size === 0) {
+    if (_goalTrackingChart) { _goalTrackingChart.destroy(); _goalTrackingChart = null; }
+    return;
+  }
+
+  // Filter out the 'unlinked' synthetic bucket for chart; keep named goals only
+  const entries = [...funding.entries()].filter(([k]) => k !== 'unlinked');
+  if (entries.length === 0) return;
+
+  const labels      = entries.map(([, v]) => v.name);
+  const sipData     = entries.map(([, v]) => Math.round(v.sipContrib));
+  const deficitData = entries.map(([, v]) => Math.round(v.deficit));
+
+  // Destroy previous instance
+  if (_goalTrackingChart) { _goalTrackingChart.destroy(); _goalTrackingChart = null; }
+
+  _goalTrackingChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'SIP Contributions',
+          data: sipData,
+          backgroundColor: 'rgba(52, 211, 153, 0.75)',
+          borderRadius: 4,
+        },
+        {
+          label: 'Remaining Deficit',
+          data: deficitData,
+          backgroundColor: 'rgba(248, 113, 113, 0.65)',
+          borderRadius: 4,
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#94A3B8', font: { size: 11 } } },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${formatRupee(ctx.parsed.x)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          stacked: true,
+          grid:  { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#64748B', font: { size: 10 }, callback: v => formatCompact(v) },
+        },
+        y: {
+          stacked: true,
+          grid:  { display: false },
+          ticks: { color: '#CBD5E1', font: { size: 11 } },
+        },
+      },
+    },
+  });
 }
 
 /* ─── Tax section full UI ─────────────────────────────────── */
@@ -490,7 +575,7 @@ function navigateTo(sectionId, subSection = null) {
 }
 
 function switchInputSubSection(subId) {
-  const subs = ['personal', 'assets', 'expenses', 'goals'];
+  const subs = ['personal', 'assets', 'expenses', 'goals', 'savings'];
   subs.forEach(id => {
     const panel = document.getElementById(`inputs-sub-${id}`);
     const tab   = document.querySelector(`.input-tab[data-sub="${id}"]`);
@@ -635,11 +720,20 @@ async function handleAuthStateChange(user) {
         // Restore state fields from saved profile (excluding uid/computed fields)
         const { updatedAt, ...saved } = details;
         Object.assign(state, saved);
+        // Re-render all forms so inputs reflect the loaded values
+        mountAllForms();
         recalculate();
         showToast('Your saved plan has been loaded.', 'success');
       }
     } catch (err) {
       console.warn('[Firestore] Could not load plan:', err.message);
+    }
+
+    // Auto-fill Full Name from account display name if not set by saved plan
+    if (!state.name && user.displayName) {
+      state.name = user.displayName;
+      const nameInput = document.getElementById('inp-name');
+      if (nameInput) nameInput.value = user.displayName;
     }
 
     // Load cached AI summary
@@ -836,6 +930,10 @@ function mountAllForms() {
   });
 
   mountGoalsForm(container('form-goals'), state, (field, value) => {
+    updateState({ [field]: value });
+  });
+
+  mountSavingsForm(container('form-savings'), state, (field, value) => {
     updateState({ [field]: value });
   });
 }
