@@ -16,7 +16,7 @@
  *   • calculatePlanHealth(trajectory, goals) → 0–100 score
  */
 
-import { INFLATION, CORPUS, GOAL_TYPES, blendedReturn, almBlendedReturn, sipRate } from './constants.js';
+import { INFLATION, CORPUS, GOAL_TYPES, RETURNS, blendedReturn, sipRate } from './constants.js';
 
 /**
  * @typedef {Object} PersonalInputs
@@ -55,6 +55,8 @@ import { INFLATION, CORPUS, GOAL_TYPES, blendedReturn, almBlendedReturn, sipRate
  * @property {number} goalOutlays       - One-time goal disbursements (₹)
  * @property {number} totalExpenses     - Sum of all outflows (₹)
  * @property {number} netSurplus        - annualIncome - totalExpenses (₹)
+ * @property {number} sipContributions  - Principal invested via SIPs this year (₹)
+ * @property {number} sipFutureValue    - Compounded value of this year's SIPs at year-end (₹)
  * @property {number} interestAccrued   - openingBalance × blendedCAGR (₹)
  * @property {number} closingBalance    - openingBalance + interest + surplus (₹)
  * @property {boolean} isRetired        - True if age >= retirementAge
@@ -101,6 +103,53 @@ export function goalFutureValue(todayValue, inflationRate, yearsUntilGoal) {
 }
 
 /**
+ * Compute a weighted-average annualRate per asset class from activeSavings.
+ * Weight = monthlyAmount of each investment entry.
+ * Falls back to RETURNS defaults for asset classes with no declared investments.
+ *
+ * This lets user-declared investment rates (PPF at 6%, NPS at 10%, etc.) drive
+ * the CAGR calculation instead of hardcoded constants.
+ *
+ * @param {Object[]} activeSavings   - Declared monthly investments
+ * @param {number}   inflationRate   - Used for realAssets fallback
+ * @returns {{ equity: number, debt: number, realAssets: number, cash: number }}
+ */
+function computeEffectiveRatesByAssetClass(activeSavings, inflationRate) {
+  const acc = {
+    equity:     { weightedSum: 0, totalWeight: 0 },
+    debt:       { weightedSum: 0, totalWeight: 0 },
+    realAssets: { weightedSum: 0, totalWeight: 0 },
+    cash:       { weightedSum: 0, totalWeight: 0 },
+  };
+
+  for (const sip of activeSavings) {
+    const cls    = sip.assetClass;
+    if (!cls || !acc[cls]) continue;
+    const weight = sip.monthlyAmount > 0 ? sip.monthlyAmount : 0;
+    const rate   = (sip.annualRate && sip.annualRate > 0)
+      ? sip.annualRate
+      : sipRate(sip.type);
+    acc[cls].weightedSum += rate * weight;
+    acc[cls].totalWeight += weight;
+  }
+
+  return {
+    equity:     acc.equity.totalWeight > 0
+                  ? acc.equity.weightedSum / acc.equity.totalWeight
+                  : RETURNS.EQUITY,
+    debt:       acc.debt.totalWeight > 0
+                  ? acc.debt.weightedSum / acc.debt.totalWeight
+                  : RETURNS.DEBT,
+    realAssets: acc.realAssets.totalWeight > 0
+                  ? acc.realAssets.weightedSum / acc.realAssets.totalWeight
+                  : inflationRate + (RETURNS.GOLD_SPREAD + RETURNS.REAL_ESTATE_SPREAD) / 2,
+    cash:       acc.cash.totalWeight > 0
+                  ? acc.cash.weightedSum / acc.cash.totalWeight
+                  : RETURNS.CASH,
+  };
+}
+
+/**
  * Build the complete year-by-year corpus trajectory.
  * This is the primary engine function — loops annually from
  * currentAge to EOL_AGE (100), applying all income, expense,
@@ -140,18 +189,21 @@ export function buildCorpusTrajectory(inputs) {
   const historicalSIP = computeHistoricalSIPByAsset(activeSavings);
   let openingBalance  = manualCorpus + historicalSIP.total;
 
-  // Compute ALM-weighted blended CAGR
-  const total = openingBalance || 1; // avoid divide-by-zero
+  // Derive per-asset-class rates from declared investments so user-set rates
+  // (e.g. PPF at 6%, NPS at 10%) propagate into the corpus growth calculation.
+  const effectiveRates = computeEffectiveRatesByAssetClass(activeSavings, inflationRate);
+
+  const manualWeightedReturn = currentEquity * effectiveRates.equity
+    + (currentDebt + currentEPF) * effectiveRates.debt
+    + currentGold * effectiveRates.realAssets
+    + currentRealEstate * effectiveRates.realAssets
+    + currentCash * effectiveRates.cash
+    + currentAlternatives * effectiveRates.equity;
+
+  // Blend manual assets with historical SIP corpus so previously invested SIPs earn returns.
   const cagr = openingBalance > 0
-    ? almBlendedReturn({
-        equity:     (currentEquity) / total,
-        debt:       (currentDebt + currentEPF) / total,
-        gold:       (currentGold) / total,
-        realEstate: (currentRealEstate) / total,
-        cash:       (currentCash) / total,
-        alts:       (currentAlternatives) / total,
-      }, inflationRate)
-    : blendedReturn(equityFraction); // fallback when corpus is zero
+    ? (manualWeightedReturn + historicalSIP.weightedAnnualReturn) / openingBalance
+    : blendedReturn(equityFraction);
 
   const rows = [];
   const totalYears = CORPUS.EOL_AGE - currentAge;
@@ -183,9 +235,9 @@ export function buildCorpusTrajectory(inputs) {
     const totalExpenses = lifestyleExpenses + medicalExpenses + goalOutlays;
     const netSurplus    = annualIncomeThisYear - totalExpenses;
 
-    // Sum monthly SIP contributions active during this calendar year
-    const sipContributions = activeSavings.reduce((sum, sip) => {
-      if (!sip.monthlyAmount || sip.monthlyAmount <= 0) return sum;
+    // Track principal invested this year and the year-end value of those SIPs separately.
+    const sipRollup = activeSavings.reduce((acc, sip) => {
+      if (!sip.monthlyAmount || sip.monthlyAmount <= 0) return acc;
       const [sy, sm] = (sip.startDate || `${planStartYear}-01`).split('-').map(Number);
       let endYYYYMM = sip.endDate;
       if (!endYYYYMM && sip.linkType === 'goal' && sip.linkedGoalId) {
@@ -198,23 +250,46 @@ export function buildCorpusTrajectory(inputs) {
         const sipStart  = sy * 12 + sm;
 
         // Hasn't started yet in this calendar year
-        if (sipStart > yearEnd) return sum;
+        if (sipStart > yearEnd) return acc;
 
         if (endYYYYMM) {
           const [ey, em] = endYYYYMM.split('-').map(Number);
           const sipEnd   = ey * 12 + em;
-          if (sipEnd < yearStart) return sum; // already ended
+          if (sipEnd < yearStart) return acc; // already ended
           const activeMonths = Math.min(sipEnd, yearEnd) - Math.max(sipStart, yearStart) + 1;
-          return sum + sip.monthlyAmount * Math.max(0, activeMonths);
+          const months = Math.max(0, activeMonths);
+          if (months === 0) return acc;
+
+          const principal = sip.monthlyAmount * months;
+          const rate = (sip.annualRate && sip.annualRate > 0) ? sip.annualRate : sipRate(sip.type);
+          const futureValue = sipFutureValue(sip.monthlyAmount, rate, months);
+
+          acc.principal += principal;
+          acc.futureValue += futureValue;
+          return acc;
         } else {
           // No end date — SIP runs indefinitely (wealth-building)
           const activeMonths = yearEnd - Math.max(sipStart, yearStart) + 1;
-          return sum + sip.monthlyAmount * Math.max(0, activeMonths);
-        }
-      }, 0);
+          const months = Math.max(0, activeMonths);
+          if (months === 0) return acc;
 
-    // Portfolio grows at blended CAGR on opening balance
-    const interestAccrued = openingBalance * cagr;
+          const principal = sip.monthlyAmount * months;
+          const rate = (sip.annualRate && sip.annualRate > 0) ? sip.annualRate : sipRate(sip.type);
+          const futureValue = sipFutureValue(sip.monthlyAmount, rate, months);
+
+          acc.principal += principal;
+          acc.futureValue += futureValue;
+          return acc;
+        }
+      }, { principal: 0, futureValue: 0 });
+
+    const sipContributions = sipRollup.principal;
+    const sipFutureValueThisYear = sipRollup.futureValue;
+
+    // Keep principal invested this year separate from the return earned on it.
+    const openingBalanceInterest = openingBalance * cagr;
+    const sipInterestAccrued = Math.max(0, sipFutureValueThisYear - sipContributions);
+    const interestAccrued = openingBalanceInterest + sipInterestAccrued;
     const closingBalance  = openingBalance + interestAccrued + netSurplus + sipContributions;
 
     rows.push({
@@ -228,6 +303,7 @@ export function buildCorpusTrajectory(inputs) {
       totalExpenses,
       netSurplus,
       sipContributions,
+      sipFutureValue: sipFutureValueThisYear,
       interestAccrued,
       closingBalance,
       isRetired,
@@ -246,15 +322,16 @@ export function buildCorpusTrajectory(inputs) {
  * that have past contributions. This reflects historical SIP investing
  * that should already be in the user's existing portfolio.
  *
- * Returns a record: { byAssetKey: { [key]: value }, unallocated: number, total: number }
+ * Returns a record: { byAssetKey: { [key]: value }, unallocated: number, total: number, weightedAnnualReturn: number }
  * where keys match the format "groupId.itemKey" (e.g. "equity.equityMutualFunds").
  *
  * @param {Array} activeSavings - state.activeSavings
- * @returns {{ byAssetKey: Object, unallocated: number, total: number }}
+ * @returns {{ byAssetKey: Object, unallocated: number, total: number, weightedAnnualReturn: number }}
  */
 export function computeHistoricalSIPByAsset(activeSavings = []) {
   const byAssetKey = {};
   let unallocated  = 0;
+  let weightedAnnualReturn = 0;
   const today = new Date();
   const todayYYYYMM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const [ty, tm] = todayYYYYMM.split('-').map(Number);
@@ -280,6 +357,7 @@ export function computeHistoricalSIPByAsset(activeSavings = []) {
     const months = effectiveEndMonths - sipStartMonths;
     const rate   = (sip.annualRate && sip.annualRate > 0) ? sip.annualRate : sipRate(sip.type);
     const fv     = sipFutureValue(sip.monthlyAmount, rate, months);
+    weightedAnnualReturn += fv * rate;
 
     if (sip.linkType === 'asset' && sip.linkedAssetKey) {
       byAssetKey[sip.linkedAssetKey] = (byAssetKey[sip.linkedAssetKey] || 0) + fv;
@@ -289,7 +367,7 @@ export function computeHistoricalSIPByAsset(activeSavings = []) {
   }
 
   const total = Object.values(byAssetKey).reduce((s, v) => s + v, 0) + unallocated;
-  return { byAssetKey, unallocated, total };
+  return { byAssetKey, unallocated, total, weightedAnnualReturn };
 }
 
 /**

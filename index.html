@@ -487,7 +487,7 @@
       <div id="inputs-sub-savings" class="input-sub-panel hidden space-y-6">
         <div id="form-savings"></div><!-- Populated by SavingsForm.js -->
         <!-- Goal Tracking Chart -->
-        <div class="card max-w-5xl mx-auto">
+        <div id="goal-tracker-card" class="card max-w-5xl mx-auto">
           <div class="card-header">
             <h3 class="card-title flex items-center gap-2 text-base">
               <span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span>
@@ -495,7 +495,10 @@
             </h3>
             <p class="text-xs text-slate-500">Corpus Allocated · SIP Contributions · Remaining Deficit</p>
           </div>
-          <div class="chart-container" style="height:260px;">
+          <p id="goal-tracker-empty-state" class="hidden px-1 text-sm text-slate-500">
+            Add life goals in the Goals tab to track funding.
+          </p>
+          <div id="goal-tracker-chart-wrap" class="chart-container" style="height:260px;">
             <canvas id="chart-goal-tracking"></canvas>
           </div>
         </div>

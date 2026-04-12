@@ -149,6 +149,7 @@ All phases complete. Feature additions are incremental — no phase gating requi
 | 4 | Charts (CorpusChart, AllocationChart, ExpenseChart) + ProjectionTable | ✅ |
 | 5 | Firebase Auth + Firestore + Gemini AI + PDF export | ✅ |
 | 6 | Investments tab, auto-save, hash routing | ✅ |
+| 7 | SIP compounding fix, investment families, CAGR from declared rates, row breakdown popup | ✅ |
 
 ## Key Files
 
@@ -170,7 +171,7 @@ All phases complete. Feature additions are incremental — no phase gating requi
 | `src/ai/aiAdvisor.js` | Gemini 2.0-flash dual-path (SDK + REST fallback) |
 | `src/components/reports/PDFExport.js` | jsPDF + html2canvas multi-page report |
 | `src/utils/constants.js` | `DEFAULTS`, `APP`, `INFLATION`, `GOAL_TYPES`, `SIP_TYPES`, `sipRate()` constants |
-| `src/utils/financeEngine.js` | `buildCorpusTrajectory()` (includes SIP contributions), `computeSIPGoalFunding()`, `sipFutureValue()` |
+| `src/utils/financeEngine.js` | `buildCorpusTrajectory()` (includes SIP contributions), `computeSIPGoalFunding()`, `sipFutureValue()`, `computeEffectiveRatesByAssetClass()` |
 | `src/utils/taxEngine.js` | `compareTaxRegimes()` old vs new regime |
 | `src/utils/formatters.js` | `formatRupee()`, `formatCompact()` Indian currency |
 | `src/styles/main.css` | Design tokens, form CSS, tooltips, dark theme overrides |
@@ -184,33 +185,52 @@ The 5th input tab (`data-sub="savings"`, panel id `inputs-sub-savings`) lets use
 
 ```js
 {
-  id:             crypto.randomUUID(),
-  type:           'MF_SIP' | 'RD' | 'PPF' | 'NPS',
-  name:           string,
-  monthlyAmount:  number,          // ₹ per month
-  annualRate:     number,          // decimal e.g. 0.13 — user-overridable, defaults to sipRate(type)
-  linkType:       'goal' | 'asset' | null,
-  linkedGoalId:   string | null,   // used when linkType === 'goal'
-  linkedAssetKey: string | null,   // used when linkType === 'asset'
-  startDate:      'YYYY-MM',
-  endDate:        'YYYY-MM' | null,
+  id:                  crypto.randomUUID(),
+  type:                string,               // instrument key e.g. 'MF_SIP', 'PPF', 'NPS'
+  name:                string,               // user-visible label
+  monthlyAmount:       number,               // ₹ per month
+  annualRate:          number,               // decimal e.g. 0.13 — user-overridable
+  investmentFamily:    string,               // family key e.g. 'mutual-funds', 'deposits'
+  investmentFamilyLabel: string,             // display label for the family
+  instrumentLabel:     string,               // display label for the instrument
+  customFamily:        string | null,        // set when investmentFamily === 'other'
+  customInstrument:    string | null,        // set when type === 'CUSTOM'
+  assetClass:          'equity' | 'debt' | 'realAssets' | 'cash',
+  linkType:            'goal' | 'asset' | null,
+  linkedGoalId:        string | null,        // used when linkType === 'goal'
+  linkedAssetKey:      string | null,        // used when linkType === 'asset'
+  startDate:           'YYYY-MM',
+  endDate:             'YYYY-MM' | null,
 }
 ```
 
-### SIP_TYPES (in `constants.js`)
+### INVESTMENT_FAMILIES (in `SavingsForm.js`)
 
-```js
-{ key: 'MF_SIP', label: 'Mutual Fund SIP', defaultRate: 0.13 }
-{ key: 'RD',     label: 'Recurring Deposit', defaultRate: 0.07 }
-{ key: 'PPF',    label: 'PPF',               defaultRate: 0.071 }
-{ key: 'NPS',    label: 'NPS',               defaultRate: 0.10 }
-```
+Replaces the old flat `SIP_TYPES` list. Six families, each with named instruments:
+
+| Family key | Instruments |
+|---|---|
+| `mutual-funds` | MF SIP, ELSS SIP, Index Fund SIP, ETF SIP |
+| `deposits` | RD, PPF Contribution, EPF/VPF, Debt Fund SIP |
+| `retirement` | NPS Contribution, Pension Fund Contribution |
+| `market-linked` | Stock SIP, REIT SIP, Gold SIP |
+| `cash-management` | Liquid Fund Sweep |
+| `other` | Custom Instrument (user-defined name + category) |
+
+Each instrument has its own `rate` and `assetClass`. `INSTRUMENT_LOOKUP` map provides O(1) lookup by instrument key.
+
+`normalizeInvestmentMeta(sip)` provides backward-compatible display for older saved records that lack the new fields.
+
+### Orphaned goal link cleanup
+
+`cleanupSavingsGoalLinks(activeSavings, goals)` in `main.js` is called inside `updateState()` whenever `goals` changes. It nullifies `linkType`/`linkedGoalId` on any investment whose linked goal no longer exists.
 
 ### Engine integration
 
 - `buildCorpusTrajectory()` accepts `activeSavings` — adds monthly SIP contributions to each year's closing balance
 - `computeSIPGoalFunding(activeSavings, goals, planStartYear)` returns a `Map<goalId, {name, sipContrib, goalInflatedCost, deficit}>`
 - `sipFutureValue(monthlyAmount, annualRate, months)` — standard annuity FV formula
+- `computeEffectiveRatesByAssetClass(activeSavings, inflationRate)` — returns weighted-average rates per asset class derived from declared investments; used by `buildCorpusTrajectory` to compute CAGR (falls back to `RETURNS.*` defaults when no investments declared for that class)
 
 ## UI / UX Conventions
 
@@ -286,6 +306,14 @@ Uses `color-scheme: dark` with a custom SVG chevron. Option backgrounds match `s
 ### Tooltips (Assets)
 
 Pure CSS hover tooltips — `.asset-info-wrap` (relative) + `.asset-info-bubble` (absolute, slides right). No JavaScript tooltip code.
+
+### Goal Tracker Empty State
+
+`#goal-tracker-card` contains both `#goal-tracker-chart-wrap` (canvas) and `#goal-tracker-empty-state` (paragraph, hidden by default). `renderGoalTrackingChart()` in `main.js` shows the empty state and hides the chart when `state.goals.length === 0`.
+
+### Projection Row Breakdown Popup
+
+Clicking any row in the projection table opens `#row-breakdown-modal` — a `modal-overlay` with `z-index: 60`. Content is typed out character-by-character (5 ms/char, 20 ms line pause) by `_typeLines()`. Three sections: **Income & Expenses**, **Corpus Growth**, **Closing Balance**. A "Skip ▶" button sets `skipRef.skip = true` to flush remaining text instantly. Clicking the backdrop or × closes the modal.
 
 ## Design Tokens
 

@@ -64,7 +64,7 @@ function _renderPage(page) {
     return;
   }
 
-  const rowsHTML = slice.map(r => {
+  const rowsHTML = slice.map((r, idx) => {
     const isNegative  = r.closingBalance < 0;
     const isGoalYear  = r.goalOutlays > 0;
     const rowClass = isNegative
@@ -80,8 +80,9 @@ function _renderPage(page) {
 
     const surplus = r.netSurplus ?? 0;
     const surplusClass = surplus < 0 ? 'text-red-400' : 'text-emerald-400';
+    const rowDataIdx = start + idx;
 
-    return `<tr class="border-t border-white/5 hover:bg-white/3 transition-colors ${rowClass}">
+    return `<tr data-row-idx="${rowDataIdx}" class="border-t border-white/5 hover:bg-white/5 cursor-pointer transition-colors ${rowClass}" title="Click for detailed breakdown">
       <td class="px-3 py-2 text-xs text-slate-400">${r.calendarYear}</td>
       <td class="px-3 py-2 text-xs font-medium">${ageCell}</td>
       <td class="px-3 py-2 text-xs text-right">${formatCompact(r.annualIncome)}</td>
@@ -118,9 +119,19 @@ function _renderPage(page) {
     <p class="text-xs text-slate-600 mt-2 px-1">
       <span class="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1"></span>R = Retired &nbsp;
       <span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1"></span>Goal disbursement year &nbsp;
-      <span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>Corpus depleted
+      <span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span>Corpus depleted &nbsp;
+      <span class="text-slate-600">&middot; Click any row for a detailed year breakdown</span>
     </p>
   `;
+
+  // Attach row-click handlers after DOM is updated
+  wrapper.querySelectorAll('tbody tr[data-row-idx]').forEach(tr => {
+    tr.addEventListener('click', () => {
+      const idx = parseInt(tr.dataset.rowIdx, 10);
+      const row = _filteredRows[idx];
+      if (row) _showRowBreakdown(row);
+    });
+  });
 }
 
 function _updatePagination() {
@@ -135,6 +146,197 @@ function _updatePagination() {
   if (prevBtn)  prevBtn.disabled     = _currentPage <= 1;
   if (nextBtn)  nextBtn.disabled     = _currentPage >= maxPage;
 }
+
+// ─── Row Breakdown Popup ────────────────────────────────────────────────────
+
+const CHAR_DELAY  = 5;   // ms per character while typing
+const LINE_PAUSE  = 20;  // ms pause after finishing a line
+
+function _delay(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+/**
+ * Build the ordered list of text lines for the breakdown panel.
+ * Each line has: text (plain), cls (Tailwind classes), instant (skip typing).
+ */
+function _buildBreakdownLines(row) {
+  const fmt  = n => formatRupee(Math.round(Math.abs(n)));
+  const pct  = n => `${(n * 100).toFixed(2)}%`;
+  const sign = n => n >= 0 ? '+' : '\u2212';  // − unicode minus
+
+  const sipFV        = row.sipFutureValue ?? 0;
+  const sipPrincipal = row.sipContributions ?? 0;
+  const sipGrowth    = Math.max(0, sipFV - sipPrincipal);
+  const openInt      = row.interestAccrued - sipGrowth;
+  const cagr         = row.openingBalance > 0 ? openInt / row.openingBalance : 0;
+
+  const L  = (text, cls, instant = false) => ({ text, cls, instant });
+  const SEP = L('\u2500'.repeat(50), 'text-slate-700 text-xs font-mono', true);
+  const GAP = L('', 'h-1', true);
+
+  const lines = [];
+
+  // Header
+  lines.push(L(
+    `  FY ${row.calendarYear}   \u00b7   Age ${row.age}${row.isRetired ? '   \u00b7   Retired \uD83C\uDFE6' : ''}`,
+    'text-amber-400 font-bold text-sm font-mono tracking-wide',
+    true
+  ));
+  lines.push(SEP);
+  lines.push(GAP);
+
+  // ── Section 1: Income & Expenses ──────────────────────────────────────────
+  lines.push(L('  INCOME & EXPENSES', 'text-slate-400 text-xs font-semibold tracking-widest font-mono'));
+  lines.push(GAP);
+  lines.push(L(`  Opening Balance          \u2192  ${fmt(row.openingBalance)}`, 'text-white font-mono text-xs'));
+
+  if (!row.isRetired) {
+    lines.push(L(`  Annual Income            +  ${fmt(row.annualIncome)}`, 'text-emerald-400 font-mono text-xs'));
+  } else {
+    lines.push(L('  Annual Income            +  \u20b90  (Retired \u2014 no salary)', 'text-slate-500 font-mono text-xs'));
+  }
+
+  lines.push(L(`  Lifestyle Expenses       \u2212  ${fmt(row.lifestyleExpenses)}`, 'text-red-300 font-mono text-xs'));
+
+  if (row.medicalExpenses > 0) {
+    lines.push(L(`  Medical Expenses         \u2212  ${fmt(row.medicalExpenses)}`, 'text-amber-300 font-mono text-xs'));
+  }
+
+  if (row.goalOutlays > 0) {
+    const goalNames = (row.goalsThisYear || []).map(g => g.name).filter(Boolean).join(', ');
+    lines.push(L(
+      `  Goal Outlay              \u2212  ${fmt(row.goalOutlays)}${goalNames ? `  (${goalNames})` : ''}`,
+      'text-yellow-300 font-mono text-xs'
+    ));
+  }
+
+  lines.push(GAP);
+  lines.push(L(
+    `  Net Surplus              ${sign(row.netSurplus)}  ${fmt(row.netSurplus)}`,
+    `font-mono text-xs font-semibold ${row.netSurplus >= 0 ? 'text-emerald-400' : 'text-red-400'}`
+  ));
+  lines.push(GAP);
+  lines.push(SEP);
+  lines.push(GAP);
+
+  // ── Section 2: Corpus Growth ───────────────────────────────────────────────
+  lines.push(L('  CORPUS GROWTH  (HOW INTEREST IS EARNED)', 'text-slate-400 text-xs font-semibold tracking-widest font-mono'));
+  lines.push(GAP);
+  lines.push(L(`  Blended Portfolio CAGR       ${pct(cagr)}`, 'text-blue-300 font-mono text-xs'));
+  lines.push(L(`  Opening Balance \u00d7 CAGR    =  ${fmt(openInt)}`, 'text-slate-200 font-mono text-xs'));
+
+  if (sipPrincipal > 0) {
+    lines.push(GAP);
+    lines.push(L(`  New SIPs paid this year       ${fmt(sipPrincipal)}  (principal)`, 'text-slate-400 font-mono text-xs'));
+    lines.push(L(`  SIP year-end value (FV)    =  ${fmt(sipFV)}`, 'text-slate-300 font-mono text-xs'));
+    lines.push(L(`  SIP in-year growth         =  ${fmt(sipGrowth)}  (FV \u2212 principal)`, 'text-emerald-300 font-mono text-xs'));
+  }
+
+  lines.push(GAP);
+  lines.push(L(
+    `  Total Interest Accrued     =  ${fmt(row.interestAccrued)}`,
+    'text-emerald-300 font-mono text-xs font-bold'
+  ));
+  lines.push(GAP);
+  lines.push(SEP);
+  lines.push(GAP);
+
+  // ── Section 3: Closing Balance ─────────────────────────────────────────────
+  lines.push(L('  CLOSING BALANCE', 'text-slate-400 text-xs font-semibold tracking-widest font-mono'));
+  lines.push(GAP);
+  lines.push(L(`    Opening Balance             ${fmt(row.openingBalance)}`, 'text-slate-300 font-mono text-xs'));
+  lines.push(L(
+    `  ${sign(row.netSurplus)} Net Surplus              ${fmt(row.netSurplus)}`,
+    `font-mono text-xs ${row.netSurplus >= 0 ? 'text-emerald-400' : 'text-red-400'}`
+  ));
+  if (sipPrincipal > 0) {
+    lines.push(L(`  + SIP Principal              ${fmt(sipPrincipal)}`, 'text-emerald-400 font-mono text-xs'));
+  }
+  lines.push(L(`  + Interest Accrued           ${fmt(row.interestAccrued)}`, 'text-emerald-300 font-mono text-xs'));
+  lines.push(L('  ' + '\u2500'.repeat(38), 'text-slate-600 font-mono text-xs', true));
+  lines.push(L(
+    `  = Closing Balance            ${formatRupee(Math.round(row.closingBalance))}`,
+    `font-mono text-sm font-bold ${row.closingBalance < 0 ? 'text-red-400' : 'text-white'}`
+  ));
+
+  return lines;
+}
+
+/**
+ * Sequentially type each line into container.
+ * skipRef.skip can be set to true to flush remaining lines instantly.
+ */
+async function _typeLines(container, lines, skipRef) {
+  for (const { text, cls, instant } of lines) {
+    if (!container.isConnected) return;
+    const div = document.createElement('div');
+    div.className = cls;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+
+    if (instant || skipRef.skip) {
+      div.textContent = text;
+      continue;
+    }
+
+    for (const char of text) {
+      if (!container.isConnected) return;
+      if (skipRef.skip) { div.textContent = text; break; }
+      div.textContent += char;
+      await _delay(CHAR_DELAY);
+    }
+    if (container.isConnected && !skipRef.skip) await _delay(LINE_PAUSE);
+  }
+
+  // Typing done — hide skip button
+  const skipBtn = document.getElementById('bd-skip-btn');
+  if (skipBtn) { skipBtn.textContent = '\u2713 Done'; skipBtn.disabled = true; }
+}
+
+/**
+ * Show the breakdown modal for a single projection row.
+ */
+function _showRowBreakdown(row) {
+  document.getElementById('row-breakdown-modal')?.remove();
+  const skipRef = { skip: false };
+
+  const overlay = document.createElement('div');
+  overlay.id = 'row-breakdown-modal';
+  overlay.className = 'modal-overlay';
+  overlay.style.zIndex = '60';
+  overlay.innerHTML = `
+    <div class="modal-card w-full" style="max-width:540px">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-bold text-white">
+          Year Breakdown &mdash; ${row.calendarYear}
+        </h3>
+        <div class="flex items-center gap-2">
+          <button id="bd-skip-btn"
+            class="text-xs text-slate-400 hover:text-white border border-white/10 rounded px-2 py-1 transition-colors">
+            Skip &#9654;
+          </button>
+          <button id="bd-close-btn"
+            class="text-slate-400 hover:text-white text-xl leading-none px-1 transition-colors">&times;</button>
+        </div>
+      </div>
+      <div id="bd-content"
+        class="overflow-y-auto rounded bg-black/20 p-3"
+        style="max-height:68vh; min-height:160px">
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#bd-close-btn').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('#bd-skip-btn').addEventListener('click', () => { skipRef.skip = true; });
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+
+  _typeLines(overlay.querySelector('#bd-content'), _buildBreakdownLines(row), skipRef);
+}
+
+// ─── CSV Export ──────────────────────────────────────────────────────────────
 
 /**
  * Export current projection data as a CSV download.

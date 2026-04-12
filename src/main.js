@@ -134,13 +134,53 @@ let _recalcTimer = null;
 let _isDirty     = false;
 let _autoSaveTimer = null;
 
+function cleanupSavingsGoalLinks(activeSavings = [], goals = []) {
+  const validGoalIds = new Set(goals.map(goal => goal.id));
+  let hasChanges = false;
+
+  const cleanedSavings = activeSavings.map((investment) => {
+    if (investment.linkType !== 'goal' || !investment.linkedGoalId || validGoalIds.has(investment.linkedGoalId)) {
+      return investment;
+    }
+
+    hasChanges = true;
+    return {
+      ...investment,
+      linkType: null,
+      linkedGoalId: null,
+    };
+  });
+
+  return hasChanges ? cleanedSavings : activeSavings;
+}
+
 /**
  * Update one or more state fields and trigger recalculation.
  * @param {Partial<typeof state>} patch
  */
 function updateState(patch) {
-  Object.assign(state, patch);
+  const nextPatch = { ...patch };
+
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'goals')) {
+    const nextGoals = nextPatch.goals ?? [];
+    const currentSavings = Object.prototype.hasOwnProperty.call(nextPatch, 'activeSavings')
+      ? (nextPatch.activeSavings ?? [])
+      : (state.activeSavings ?? []);
+    nextPatch.activeSavings = cleanupSavingsGoalLinks(currentSavings, nextGoals);
+  }
+
+  Object.assign(state, nextPatch);
   _isDirty = true;
+
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'goals')) {
+    const savingsRoot = document.getElementById('form-savings');
+    if (savingsRoot) {
+      mountSavingsForm(savingsRoot, state, (field, value) => {
+        updateState({ [field]: value });
+      });
+    }
+  }
+
   scheduleRecalculation();
 }
 
@@ -357,8 +397,24 @@ function updateSidebarSIPsCount() {
 let _goalTrackingChart = null;
 
 function renderGoalTrackingChart() {
+  const card = document.getElementById('goal-tracker-card');
+  const chartWrap = document.getElementById('goal-tracker-chart-wrap');
+  const emptyState = document.getElementById('goal-tracker-empty-state');
   const canvas = document.getElementById('chart-goal-tracking');
   if (!canvas) return;
+
+  if ((state.goals ?? []).length === 0) {
+    if (_goalTrackingChart) { _goalTrackingChart.destroy(); _goalTrackingChart = null; }
+    if (card) card.classList.remove('hidden');
+    if (chartWrap) chartWrap.classList.add('hidden');
+    if (emptyState) emptyState.classList.remove('hidden');
+    return;
+  }
+
+  if (card) card.classList.remove('hidden');
+  if (chartWrap) chartWrap.classList.remove('hidden');
+  if (emptyState) emptyState.classList.add('hidden');
+
   const funding = state.goalFunding;
   if (!funding || funding.size === 0) {
     if (_goalTrackingChart) { _goalTrackingChart.destroy(); _goalTrackingChart = null; }
