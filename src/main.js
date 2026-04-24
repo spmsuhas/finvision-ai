@@ -31,7 +31,7 @@ import { generateExecutiveSummary, sendChatMessage } from './ai/aiAdvisor.js';
 import { generatePDFReport }       from './components/reports/PDFExport.js';
 import { onAuthStateChanged, signInWithGoogle, signInWithEmail, createAccount, signOut as fbSignOut, sendPasswordReset } from './firebase/auth.js';
 import { isFirebaseConfigured }    from './firebase/config.js';
-import { savePersonalDetails, loadPersonalDetails, savePlan, loadAllPlans, saveAISummary, loadAISummary, loadPartnerSnapshot } from './firebase/firestore.js';
+import { savePersonalDetails, loadPersonalDetails, savePlan, loadAllPlans, saveAISummary, loadAISummary, loadPartnerSnapshot, savePartnerSnapshot, subscribeToPartnerProfile } from './firebase/firestore.js';
 
 /* ═════════════════════════════════════════════════════════════
    GLOBAL APPLICATION STATE
@@ -151,6 +151,56 @@ const state = {
 let _recalcTimer = null;
 let _isDirty     = false;
 let _autoSaveTimer = null;
+
+/* ═════════════════════════════════════════════════════════════
+   REAL-TIME PARTNER LISTENER
+   Holds the Firestore onSnapshot unsubscribe handle.
+   Must be torn down on: Individual toggle, logout, unlink.
+═════════════════════════════════════════════════════════════ */
+let _partnerUnsubscribe = null;
+
+/**
+ * Start a live Firestore listener on the linked partner's profile.
+ * Replaces state.partnerData on every push and triggers a recalculation.
+ * Calling this when a listener is already active tears down the old one first.
+ */
+function attachPartnerListener() {
+  detachPartnerListener(); // always clean up previous listener first
+  const partnerUID = (state.linkedAccountIds ?? [])[0];
+  if (!partnerUID || !isFirebaseConfigured || !state.uid) return;
+
+  _partnerUnsubscribe = subscribeToPartnerProfile(
+    partnerUID,
+    (raw) => {
+      // Strip Firestore server timestamps before storing
+      const { updatedAt: _u, savedAt: _s, ...profile } = raw;
+      // Apply visibility migration in case partner has legacy ownerId fields
+      profile.goals         = migrateVisibility(profile.goals         ?? []);
+      profile.activeSavings = migrateVisibility(profile.activeSavings ?? []);
+      profile.liabilities   = migrateVisibility(profile.liabilities   ?? []);
+      // Direct assignment — partnerData must never go through updateState()
+      state.partnerData = profile;
+      // Persist updated snapshot so it survives the next refresh
+      savePartnerSnapshot(state.uid, profile).catch(() => {});
+      scheduleRecalculation();
+    },
+    (err) => {
+      // Non-fatal: keep existing cached snapshot, log for diagnostics
+      console.warn('[Realtime] Partner listener error:', err.message);
+    },
+  );
+}
+
+/**
+ * Tear down the active partner listener and release the handle.
+ * Safe to call even when no listener is active.
+ */
+function detachPartnerListener() {
+  if (_partnerUnsubscribe) {
+    _partnerUnsubscribe();
+    _partnerUnsubscribe = null;
+  }
+}
 
 /* ═════════════════════════════════════════════════════════════
    BACKWARD-COMPATIBILITY MIGRATION HELPERS
@@ -933,6 +983,8 @@ async function handleAuthStateChange(user) {
             const partnerSnap = await loadPartnerSnapshot(user.uid);
             if (partnerSnap) state.partnerData = partnerSnap;
           } catch (_) { /* non-critical — household view degrades gracefully */ }
+          // If the user was in household view, re-attach the real-time listener
+          if (state.viewMode === 'household') attachPartnerListener();
         }
         // Migrate visibility on all arrays for backward compatibility
         state.goals           = migrateVisibility(state.goals ?? []);
@@ -964,6 +1016,8 @@ async function handleAuthStateChange(user) {
       }
     } catch { /* non-critical */ }
   } else {
+    // Tear down any active partner listener before clearing state
+    detachPartnerListener();
     state.uid       = null;
     state.userName  = 'Investor';
     state.userEmail = null;
@@ -1164,7 +1218,13 @@ function mountAllForms() {
   const familyContainer = container('form-family');
   if (familyContainer) {
     import('./components/forms/FamilySyncForm.js').then(({ mountFamilySyncForm }) => {
-      mountFamilySyncForm(familyContainer, state, { updateState, showToast, scheduleRecalculation });
+      mountFamilySyncForm(familyContainer, state, {
+        updateState,
+        showToast,
+        scheduleRecalculation,
+        attachListener: attachPartnerListener,
+        detachListener: detachPartnerListener,
+      });
     });
   }
 }
@@ -1544,6 +1604,12 @@ function bindEvents() {
     document.querySelectorAll('.view-mode-btn').forEach(b =>
       b.classList.toggle('active', b.dataset.mode === mode),
     );
+    // Attach or detach the real-time partner listener based on view mode
+    if (mode === 'household' && (state.linkedAccountIds ?? []).length > 0) {
+      attachPartnerListener();
+    } else {
+      detachPartnerListener();
+    }
     scheduleRecalculation();
   });
 }

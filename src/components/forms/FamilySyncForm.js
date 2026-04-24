@@ -112,7 +112,7 @@ const DEMO_PARTNER = {
 /* ═══════════════════════════════════════════════════════════════
    MAIN EXPORT
 ═══════════════════════════════════════════════════════════════ */
-export function mountFamilySyncForm(container, state, { updateState, showToast, scheduleRecalculation }) {
+export function mountFamilySyncForm(container, state, { updateState, showToast, scheduleRecalculation, attachListener, detachListener }) {
   if (!container) return;
 
   if (container._famSyncAbort) container._famSyncAbort.abort();
@@ -340,6 +340,7 @@ export function mountFamilySyncForm(container, state, { updateState, showToast, 
           confirmLabel: 'Unlink',
         });
         if (!confirmed) return;
+        detachListener?.();   // stop real-time listener before clearing state
         state.partnerData      = null;
         state.linkedAccountIds = [];
         state.viewMode         = 'individual';
@@ -411,6 +412,7 @@ export function mountFamilySyncForm(container, state, { updateState, showToast, 
         _linkErrorMsg          = null;
         _isLinking             = false;
         if (state.uid) savePartnerSnapshot(state.uid, partnerProfile).catch(() => {});
+        attachListener?.();   // start real-time listener now that link is established
         scheduleRecalculation();
         showToast('Linked with ' + (partnerProfile.name || 'partner') + ' \u2713 Household view activated', 'success');
         render();

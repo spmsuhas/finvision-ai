@@ -106,6 +106,35 @@ export async function subscribeToPlan(uid, planId, onUpdate) {
   });
 }
 
+/**
+ * Subscribe to real-time updates of a partner's profile document.
+ * Returns the Firestore unsubscribe function — caller MUST invoke it
+ * when the household view is torn down to prevent memory leaks and
+ * unnecessary Firestore reads.
+ *
+ * The listener fires immediately with the current document value, then
+ * on every subsequent write. Visibility filtering is enforced client-side
+ * (Firestore rules are document-level; array element filtering is not
+ * possible server-side).
+ *
+ * Security: the Firestore rule for this path requires that the reader's
+ * UID appears in the document's `linkedAccountIds` array.
+ *
+ * @param {string}   partnerUID  — UID of the linked partner
+ * @param {Function} onUpdate    — called with the raw doc data on every change
+ * @param {Function} [onError]   — called with the Firestore error; optional
+ * @returns {Function} unsubscribe — invoke to stop the listener
+ */
+export function subscribeToPartnerProfile(partnerUID, onUpdate, onError) {
+  if (!isFirebaseConfigured || !db || !partnerUID) return () => {};
+  const ref = _fvDoc(partnerUID, FIRESTORE.PERSONAL_DETAILS, 'profile');
+  return onSnapshot(
+    ref,
+    snap => { if (snap.exists()) onUpdate(snap.data()); },
+    err  => { if (onError) onError(err); },
+  );
+}
+
 /* ─── FAMILY SYNC CODES ──────────────────────────────────────── */
 // Top-level /SyncCodes/{code} collection — not scoped under any user
 // so a partner can look up a code without knowing the UID first.
