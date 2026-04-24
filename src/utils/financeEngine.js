@@ -870,3 +870,119 @@ export function calculateOptimalTaxStrategy(p1TaxInputs = {}, p2TaxInputs = {}, 
 
   return bestResult ?? { p1Tax: 0, p2Tax: 0, householdTax: 0, p1Regime: 'NEW', p2Regime: 'NEW', p1_80c: 0, p2_80c: 0, p1_24b: 0, p2_24b: 0, aiInsight };
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   PORTFOLIO REBALANCING ENGINE
+   Computes drift between actual and target allocation and
+   generates tax-efficient SIP re-routing nudges.
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Calculate per-class drift (actual% − target%) from current asset balances.
+ *
+ * @param {{ equity: number, debt: number, realAssets: number, cash: number }} currentAssets - ₹ values per class
+ * @param {{ equity: number, debt: number, realAssets: number, cash: number }} targetAllocation - target percentages (must sum to 100)
+ * @returns {{ equity: number, debt: number, realAssets: number, cash: number, totalAUM: number, actualPct: Object }}
+ *   Each class value is the drift in percentage points (positive = overweight, negative = underweight).
+ */
+export function calculateAssetDrift(currentAssets, targetAllocation) {
+  const totalAUM = (currentAssets.equity || 0) + (currentAssets.debt || 0)
+    + (currentAssets.realAssets || 0) + (currentAssets.cash || 0);
+
+  if (totalAUM === 0) {
+    return {
+      equity: 0, debt: 0, realAssets: 0, cash: 0, totalAUM: 0,
+      actualPct: { equity: 0, debt: 0, realAssets: 0, cash: 0 },
+    };
+  }
+
+  const actualPct = {
+    equity:     (currentAssets.equity     || 0) / totalAUM * 100,
+    debt:       (currentAssets.debt       || 0) / totalAUM * 100,
+    realAssets: (currentAssets.realAssets || 0) / totalAUM * 100,
+    cash:       (currentAssets.cash       || 0) / totalAUM * 100,
+  };
+
+  return {
+    equity:     actualPct.equity     - (targetAllocation.equity     || 0),
+    debt:       actualPct.debt       - (targetAllocation.debt       || 0),
+    realAssets: actualPct.realAssets - (targetAllocation.realAssets || 0),
+    cash:       actualPct.cash       - (targetAllocation.cash       || 0),
+    totalAUM,
+    actualPct,
+  };
+}
+
+/**
+ * Generate actionable rebalancing nudges from asset class drift.
+ *
+ * Triggers only when |drift| > 5 percentage points for any class.
+ * Framing is tax-efficient: recommends SIP re-routing, not selling
+ * (avoids triggering STCG/LTCG for equity/debt holdings).
+ *
+ * @param {{ equity: number, debt: number, realAssets: number, cash: number }} drift - output of calculateAssetDrift
+ * @param {Array} [activeSavings] - state.activeSavings (used to show current SIP amounts per class)
+ * @returns {string[]} Array of actionable nudge strings; empty array when portfolio is balanced.
+ */
+export function generateRebalancingNudges(drift, activeSavings = []) {
+  const THRESHOLD = 5; // percentage-point drift required to trigger a nudge
+  const CLASS_LABELS = {
+    equity:     'Equity',
+    debt:       'Debt',
+    realAssets: 'Real Assets',
+    cash:       'Cash & Alternatives',
+  };
+  const SKIP_KEYS = new Set(['totalAUM', 'actualPct']);
+
+  const overweight  = Object.entries(drift)
+    .filter(([k, v]) => !SKIP_KEYS.has(k) && v >  THRESHOLD)
+    .sort((a, b) => b[1] - a[1]);
+  const underweight = Object.entries(drift)
+    .filter(([k, v]) => !SKIP_KEYS.has(k) && v < -THRESHOLD)
+    .sort((a, b) => a[1] - b[1]);
+
+  if (overweight.length === 0 && underweight.length === 0) return [];
+
+  // Monthly SIP totals per asset class
+  const sipByClass = activeSavings.reduce((acc, s) => {
+    const cls = s.assetClass;
+    if (cls) acc[cls] = (acc[cls] || 0) + (s.monthlyAmount || 0);
+    return acc;
+  }, {});
+
+  const nudges = [];
+
+  for (const [underCls] of underweight) {
+    const label    = CLASS_LABELS[underCls];
+    const driftAmt = Math.abs(drift[underCls]).toFixed(1);
+    const existing = sipByClass[underCls] || 0;
+    const [overCls] = overweight[0] || [];
+    const overLabel = overCls ? CLASS_LABELS[overCls] : null;
+    const overAmt   = overCls ? Math.abs(drift[overCls]).toFixed(1) : null;
+
+    if (overLabel) {
+      nudges.push(
+        `${label} is underweight by ${driftAmt}% — route new SIPs to ${label} funds` +
+        (existing > 0 ? ` (you currently invest ₹${Math.round(existing).toLocaleString('en-IN')}/mo here)` : '') +
+        ` instead of adding more to ${overLabel} (overweight by ${overAmt}%). Prefer SIP re-routing over selling to avoid STCG/LTCG.`,
+      );
+    } else {
+      nudges.push(
+        `${label} is underweight by ${driftAmt}% — start or increase a monthly SIP in ${label} instruments to restore balance.`,
+      );
+    }
+  }
+
+  // Any overweight class not already paired gets its own nudge
+  for (const [overCls, overDrift] of overweight) {
+    const label        = CLASS_LABELS[overCls];
+    const alreadyPaired = nudges.some(n => n.includes(`more to ${label}`));
+    if (!alreadyPaired) {
+      nudges.push(
+        `${label} is overweight by ${overDrift.toFixed(1)}% — pause or reduce new ${label} contributions and redirect surplus toward lagging asset classes.`,
+      );
+    }
+  }
+
+  return nudges;
+}

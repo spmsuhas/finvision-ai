@@ -100,6 +100,10 @@ export function mountAssetsForm(container, state, onUpdate) {
     }
   }
 
+  // Mutable copy of target allocation for slider constraint logic
+  const DEFAULT_TARGET = { equity: 60, debt: 30, realAssets: 10, cash: 0 };
+  const currentTarget  = { ...(state.targetAllocation || DEFAULT_TARGET) };
+
   /* ── helpers ──────────────────────────────────────────────── */
   function sumGroup(gid) {
     return GROUPS.find(g => g.id === gid).items
@@ -295,6 +299,30 @@ export function mountAssetsForm(container, state, onUpdate) {
         </div>
       </div>
 
+      <!-- ── Target Allocation Sliders ─────────────────────── -->
+      <div class="card bg-surface-3 max-w-2xl mx-auto" id="target-alloc-card">
+        <h3 class="card-title text-base mb-1">Target Allocation</h3>
+        <p class="text-xs text-slate-500 mb-4">Set your ideal portfolio split. Moving one slider adjusts the others proportionally so the total stays at 100%. The Allocation chart will show a target ring.</p>
+        <div class="space-y-3" id="target-alloc-sliders">
+          ${[
+            ['equity',     'Equity',           'text-brand'],
+            ['debt',       'Debt',             'text-blue-400'],
+            ['realAssets', 'Real Assets',       'text-amber-400'],
+            ['cash',       'Cash & Alts',       'text-slate-400'],
+          ].map(([k, label, colorClass]) => `
+          <div class="space-y-1">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">${label}</span>
+              <span id="target-pct-${k}" class="font-semibold ${colorClass}">${currentTarget[k]}%</span>
+            </div>
+            <input type="range" min="0" max="100" step="1" value="${currentTarget[k]}"
+              class="w-full h-1.5 rounded-full appearance-none bg-surface-2 accent-amber-400 cursor-pointer"
+              id="target-slider-${k}" data-target-class="${k}" />
+          </div>`).join('')}
+        </div>
+        <p class="text-[11px] text-slate-500 mt-3 text-right">Total: <span id="target-sum" class="${Object.values(currentTarget).reduce((s, v) => s + v, 0) === 100 ? 'text-emerald-400' : 'text-rose-400'} font-semibold">${Object.values(currentTarget).reduce((s, v) => s + v, 0)}%</span></p>
+      </div>
+
     </div>
   `;
 
@@ -343,6 +371,78 @@ export function mountAssetsForm(container, state, onUpdate) {
     const { group, key } = e.target.dataset;
     if (group && key) e.target.value = indianFormat(aa[group]?.[key] || 0);
   }, true);
+
+  /* ── Target Allocation Sliders ────────────────────────────── */
+  const TARGET_CLASSES = ['equity', 'debt', 'realAssets', 'cash'];
+
+  function applyTargetConstraint(changedKey, rawVal) {
+    const newVal = Math.max(0, Math.min(100, parseInt(rawVal, 10)));
+    const others = TARGET_CLASSES.filter(k => k !== changedKey);
+    const delta  = newVal - currentTarget[changedKey];
+    if (delta === 0) return;
+
+    // How much we can take from / add to other classes
+    const otherTotal = others.reduce((s, k) => s + currentTarget[k], 0);
+    // Clamp increase so others never go below 0
+    const clampedDelta = delta > 0 ? Math.min(delta, otherTotal) : delta;
+    const finalVal     = currentTarget[changedKey] + clampedDelta;
+
+    // Distribute -clampedDelta proportionally among others
+    let remaining = -clampedDelta;
+    others.forEach((k, i) => {
+      if (i === others.length - 1) {
+        // Last key absorbs rounding residual
+        currentTarget[k] = Math.max(0, currentTarget[k] + remaining);
+      } else {
+        const weight  = otherTotal > 0 ? currentTarget[k] / otherTotal : 1 / others.length;
+        const share   = Math.round(weight * (-clampedDelta));
+        const applied = Math.max(0, currentTarget[k] + share);
+        remaining    -= (applied - currentTarget[k]);
+        currentTarget[k] = applied;
+      }
+    });
+    currentTarget[changedKey] = finalVal;
+
+    // Force exact sum = 100 (fix any rounding residual on the largest remaining class)
+    const sum  = TARGET_CLASSES.reduce((s, k) => s + currentTarget[k], 0);
+    const diff = 100 - sum;
+    if (diff !== 0) {
+      const adjKey = TARGET_CLASSES
+        .filter(k => k !== changedKey)
+        .sort((a, b) => currentTarget[b] - currentTarget[a])[0];
+      if (adjKey) currentTarget[adjKey] = Math.max(0, currentTarget[adjKey] + diff);
+    }
+  }
+
+  function refreshSliderUI() {
+    TARGET_CLASSES.forEach(k => {
+      const sl = container.querySelector(`#target-slider-${k}`);
+      const lb = container.querySelector(`#target-pct-${k}`);
+      if (sl) sl.value    = currentTarget[k];
+      if (lb) lb.textContent = `${currentTarget[k]}%`;
+    });
+    const total  = TARGET_CLASSES.reduce((s, k) => s + currentTarget[k], 0);
+    const sumEl  = container.querySelector('#target-sum');
+    if (sumEl) {
+      sumEl.textContent = `${total}%`;
+      sumEl.className   = total === 100 ? 'text-emerald-400 font-semibold' : 'text-rose-400 font-semibold';
+    }
+  }
+
+  // Live UI update as user drags (no state write yet — avoids flood of dirty flags)
+  container.querySelector('#target-alloc-sliders')?.addEventListener('input', (e) => {
+    const slider = e.target.closest('[data-target-class]');
+    if (!slider) return;
+    applyTargetConstraint(slider.dataset.targetClass, slider.value);
+    refreshSliderUI();
+  });
+
+  // Commit to state on mouseup / touchend (after drag ends)
+  container.querySelector('#target-alloc-sliders')?.addEventListener('change', (e) => {
+    const slider = e.target.closest('[data-target-class]');
+    if (!slider) return;
+    onUpdate('targetAllocation', { ...currentTarget });
+  });
 }
 
 /**

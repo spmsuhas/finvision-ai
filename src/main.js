@@ -14,7 +14,7 @@
 
 import { DEFAULTS, APP, INFLATION, almBlendedReturn } from './utils/constants.js';
 import { formatRupee, formatCompact } from './utils/formatters.js';
-import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding, computeHistoricalSIPByAsset, buildHouseholdInputs } from './utils/financeEngine.js';
+import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding, computeHistoricalSIPByAsset, buildHouseholdInputs, calculateAssetDrift, generateRebalancingNudges } from './utils/financeEngine.js';
 import { compareTaxRegimes } from './utils/taxEngine.js';
 import { Chart } from 'chart.js/auto';
 import { renderCorpusChart, renderCorpusPreview, destroyCorpusCharts } from './components/charts/CorpusChart.js';
@@ -133,6 +133,10 @@ const state = {
   // Whether to include partner's assets in household aggregate.
   shareAssets: true,
 
+  // Target allocation for rebalancing nudges. null = not yet configured by user.
+  // Shape: { equity: number, debt: number, realAssets: number, cash: number } — must sum to 100.
+  targetAllocation: null,
+
   // Plan metadata
   planStartYear:   DEFAULTS.PLAN_START_YEAR,
 
@@ -142,6 +146,8 @@ const state = {
   planHealth:          0,
   goalFunding:         new Map(),
   historicalSIPByAsset: { byAssetKey: {}, unallocated: 0, total: 0 },
+  assetDrift:          null,   // output of calculateAssetDrift()
+  rebalancingNudges:   [],     // output of generateRebalancingNudges()
 };
 
 /* ═════════════════════════════════════════════════════════════
@@ -341,6 +347,21 @@ function recalculate() {
     state.goalFunding          = computeSIPGoalFunding(state.activeSavings, inputs.goals, state.planStartYear, partnerSavingsForGoals);
     state.historicalSIPByAsset = computeHistoricalSIPByAsset(state.activeSavings);
 
+    // Compute asset drift and rebalancing nudges (only when user has set a target)
+    if (state.targetAllocation) {
+      const currentForDrift = {
+        equity:     inputs.currentEquity || 0,
+        debt:       (inputs.currentDebt || 0) + (inputs.currentEPF || 0),
+        realAssets: (inputs.currentGold || 0) + (inputs.currentRealEstate || 0),
+        cash:       (inputs.currentCash || 0) + (inputs.currentAlternatives || 0),
+      };
+      state.assetDrift        = calculateAssetDrift(currentForDrift, state.targetAllocation);
+      state.rebalancingNudges = generateRebalancingNudges(state.assetDrift, state.activeSavings);
+    } else {
+      state.assetDrift        = null;
+      state.rebalancingNudges = [];
+    }
+
     updateAllUI();
     showRecalcIndicator(false);
   }, 0);
@@ -392,6 +413,52 @@ function updateAllUI() {
   updateAssetSIPBadges(document.getElementById('form-assets'), state.historicalSIPByAsset);
   updateViewModeUI();
   updatePartnerPanels();
+  updateRebalancingAlerts();
+}
+
+function updateRebalancingAlerts() {
+  const card = document.getElementById('rebalancing-alerts-card');
+  const list = document.getElementById('rebalancing-nudges-list');
+  if (!card || !list) return;
+
+  if (!state.targetAllocation) {
+    card.classList.add('hidden');
+    return;
+  }
+  card.classList.remove('hidden');
+
+  const nudges = state.rebalancingNudges ?? [];
+
+  if (nudges.length === 0) {
+    list.innerHTML = `
+      <div class="flex items-center gap-2 text-sm text-emerald-400 py-1">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+        Portfolio is balanced — all asset classes are within 5% of target
+      </div>`;
+  } else {
+    list.innerHTML = nudges.map(nudge => `
+      <div class="flex items-start gap-2 text-sm rounded-lg bg-amber-500/8 border border-amber-500/20 px-3 py-2">
+        <svg class="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <span class="text-slate-300 leading-snug">${nudge}</span>
+      </div>`).join('');
+  }
+
+  // Drift summary row below nudges
+  const drift = state.assetDrift;
+  if (drift && drift.totalAUM > 0) {
+    const DRIFT_LABELS = { equity: 'Equity', debt: 'Debt', realAssets: 'Real Assets', cash: 'Cash' };
+    const driftRow = `
+      <div class="flex gap-3 mt-2 pt-2 border-t border-white/5 flex-wrap">
+        ${['equity', 'debt', 'realAssets', 'cash'].map(k => {
+          const d = drift[k] || 0;
+          const color = Math.abs(d) <= 2 ? 'text-emerald-400' : Math.abs(d) <= 5 ? 'text-amber-400' : 'text-rose-400';
+          const sign  = d > 0 ? '+' : '';
+          return `<span class="text-xs ${color}">${DRIFT_LABELS[k]}: ${sign}${d.toFixed(1)}%</span>`;
+        }).join('')}
+        <span class="text-xs text-slate-500 ml-auto">vs target</span>
+      </div>`;
+    list.insertAdjacentHTML('beforeend', driftRow);
+  }
 }
 
 function updateDashboardKPIs() {
@@ -505,7 +572,7 @@ function updateCharts() {
     debtPct,
     realAssetsPct,
     cashPct,
-  }, INFLATION.GENERAL);
+  }, INFLATION.GENERAL, state.targetAllocation);
 
   // Expense chart — aggregate partner expenses into groups when in household mode
   const expenseGroups = (state.expenseCategories || []).reduce((acc, c) => {
@@ -1547,6 +1614,8 @@ function bindEvents() {
         planHealth: state.planHealth,
         linkedAccountIds: state.linkedAccountIds ?? [],
         viewMode: state.viewMode ?? 'individual',
+        shareAssets: state.shareAssets !== false,
+        targetAllocation: state.targetAllocation ?? null,
       });
       showToast('Plan saved ✓', 'success');
     } catch (err) {
@@ -1974,6 +2043,8 @@ function initApp() {
       planHealth: state.planHealth,
       linkedAccountIds: state.linkedAccountIds ?? [],
       viewMode: state.viewMode ?? 'individual',
+      shareAssets: state.shareAssets !== false,
+      targetAllocation: state.targetAllocation ?? null,
     };
     try {
       await savePersonalDetails(state.uid, payload);

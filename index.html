@@ -349,6 +349,18 @@
         <p class="text-sm text-blue-300">Household view — showing combined data from your account and <span id="household-partner-name" class="font-semibold text-white">your partner</span></p>
       </div>
 
+      <!-- Portfolio Rebalancing Insights (shown only when targetAllocation is set) -->
+      <div id="rebalancing-alerts-card" class="hidden card">
+        <div class="card-header">
+          <h2 class="card-title flex items-center gap-2">
+            <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Portfolio Rebalancing Insights
+          </h2>
+          <button class="text-xs text-brand hover:text-brand-light transition-colors" data-section="inputs" data-sub="assets">Set Targets →</button>
+        </div>
+        <div id="rebalancing-nudges-list" class="space-y-2 mt-1"></div>
+      </div>
+
       <!-- KPI Cards Row -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="kpi-card">
