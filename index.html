@@ -6,7 +6,19 @@
   <title>FinVision AI — Your Financial Future, Visualized</title>
   <meta name="description" content="AI-powered financial planning for modern India. Forecast your wealth, optimize taxes, and achieve every life goal." />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <!-- IBM Plex Sans — financial, trustworthy, professional (ui-ux-pro-max) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="/src/styles/main.css" />
+  <!-- Apply saved theme before first paint to prevent flash -->
+  <script>
+    (function(){
+      var t = localStorage.getItem('fv-theme') || 'dark';
+      var h = document.documentElement;
+      if (t === 'light') { h.classList.remove('dark'); h.classList.add('light'); }
+      else               { h.classList.add('dark');   h.classList.remove('light'); }
+    })();
+  </script>
 </head>
 <body class="bg-surface-1 text-slate-100 font-sans antialiased">
 
@@ -161,6 +173,34 @@
         </select>
       </div>
 
+      <!-- View Mode Toggle (shown only when a partner is linked) -->
+      <div id="view-mode-toggle" class="hidden lg:flex items-center gap-1 bg-surface-3 rounded-lg p-0.5 border border-white/5">
+        <button class="view-mode-btn active text-xs font-medium px-3 py-1.5 rounded-md transition-colors flex items-center gap-1" data-mode="individual">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          Individual
+        </button>
+        <button class="view-mode-btn text-xs font-medium px-3 py-1.5 rounded-md transition-colors flex items-center gap-1" data-mode="household">
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Household
+        </button>
+      </div>
+
+      <!-- Theme Toggle -->
+      <button id="btn-theme-toggle" class="btn-theme-toggle" aria-label="Toggle light/dark theme" title="Toggle theme">
+        <!-- Sun: shown in dark mode → click to go light -->
+        <svg id="theme-icon-sun" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707
+               M6.343 6.343l-.707-.707m12.728 0l-.707.707
+               M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+        </svg>
+        <!-- Moon: shown in light mode → click to go dark -->
+        <svg id="theme-icon-moon" class="w-4 h-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+        </svg>
+      </button>
+
       <!-- Auth Button -->
       <div id="auth-guest-area">
         <button id="btn-open-auth" class="btn-primary text-sm py-1.5 px-4">Sign In</button>
@@ -227,6 +267,16 @@
         Personal Details
         <span id="sidebar-badge-personal" class="sidebar-badge hidden">!</span>
       </button>
+      <button class="sidebar-link" data-section="inputs" data-sub="savings">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Investments
+        <span id="sidebar-sips-count" class="sidebar-badge bg-emerald-500/20 text-emerald-400">0</span>
+      </button>
+      <button class="sidebar-link" data-section="inputs" data-sub="liabilities">
+        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+        Liabilities &amp; Debt
+        <span id="sidebar-liabilities-count" class="sidebar-badge bg-rose-500/20 text-rose-400 hidden">0</span>
+      </button>
       <button class="sidebar-link" data-section="inputs" data-sub="assets">
         <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
         Assets &amp; Portfolio
@@ -239,11 +289,6 @@
         <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z"/></svg>
         Life Goals
         <span id="sidebar-goals-count" class="sidebar-badge bg-brand/20 text-brand">0</span>
-      </button>
-      <button class="sidebar-link" data-section="inputs" data-sub="savings">
-        <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        Investments
-        <span id="sidebar-sips-count" class="sidebar-badge bg-emerald-500/20 text-emerald-400">0</span>
       </button>
 
       <p class="text-[10px] text-slate-500 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Analysis</p>
@@ -296,6 +341,12 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           Update My Plan
         </button>
+      </div>
+
+      <!-- Household Mode Banner (shown only in household view) -->
+      <div id="household-mode-banner" class="hidden rounded-xl border border-blue-500/25 bg-blue-500/8 px-4 py-3 flex items-center gap-3">
+        <svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <p class="text-sm text-blue-300">Household view — showing combined data from your account and <span id="household-partner-name" class="font-semibold text-white">your partner</span></p>
       </div>
 
       <!-- KPI Cards Row -->
@@ -439,23 +490,27 @@
     <!-- ─────────────────────────────────────────────────────────
          SECTION: INPUTS (MY PLAN)
     ───────────────────────────────────────────────────────── -->
-    <section id="section-inputs" class="section-panel hidden p-6">
-      <div class="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 class="text-2xl font-bold text-white">My Financial Plan</h1>
-          <p class="text-sm text-slate-400 mt-0.5">All fields update your projections in real-time</p>
+    <section id="section-inputs" class="section-panel hidden">
+      <!-- ── Sticky plan header ── -->
+      <div class="sticky top-16 z-30 bg-surface-1 border-b border-white/5 px-6 pt-5 pb-3 shadow-md">
+        <!-- Title row: Save Plan button right-aligned, heading centred -->
+        <div class="relative flex items-center justify-center mb-3">
+          <div class="text-center">
+            <h1 class="text-2xl font-bold text-white">My Financial Plan</h1>
+            <p class="text-sm text-slate-400 mt-0.5">All fields update your projections in real-time</p>
+          </div>
+          <div class="absolute right-0 flex items-center gap-3">
+            <span id="autosave-status" class="text-xs text-slate-500 hidden"></span>
+            <button id="btn-save-plan" class="btn-primary flex items-center gap-2 text-sm py-2 px-4 flex-shrink-0">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
+              Save Plan
+            </button>
+          </div>
         </div>
-        <div class="flex items-center gap-3">
-          <span id="autosave-status" class="text-xs text-slate-500 hidden"></span>
-          <button id="btn-save-plan" class="btn-primary flex items-center gap-2 text-sm py-2 px-4 flex-shrink-0">
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"/></svg>
-            Save Plan
-          </button>
-        </div>
-      </div>
 
-      <!-- Sub-section Tabs -->
-      <div class="flex gap-1 bg-surface-3 rounded-xl p-1 mb-6 w-fit">
+        <!-- Sub-section Tabs — centred -->
+        <div class="flex justify-center">
+        <div class="flex gap-1 bg-surface-3 rounded-xl p-1 w-fit">
         <button class="input-tab active" data-sub="personal">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
           Personal
@@ -463,6 +518,10 @@
         <button class="input-tab" data-sub="savings">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
           Investments
+        </button>
+        <button class="input-tab" data-sub="liabilities">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
+          Liabilities
         </button>
         <button class="input-tab" data-sub="assets">
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/></svg>
@@ -476,7 +535,16 @@
           <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/></svg>
           Goals
         </button>
+        <button class="input-tab" data-sub="family">
+          <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+          Family
+        </button>
       </div>
+      </div><!-- /tabs centre wrapper -->
+      </div><!-- /sticky header -->
+
+      <!-- Scrollable content area -->
+      <div class="p-6">
 
       <!-- Personal Details Sub-panel -->
       <div id="inputs-sub-personal" class="input-sub-panel space-y-6">
@@ -486,6 +554,8 @@
       <!-- Savings & SIPs Sub-panel -->
       <div id="inputs-sub-savings" class="input-sub-panel hidden space-y-6">
         <div id="form-savings"></div><!-- Populated by SavingsForm.js -->
+        <!-- Partner's shared investments (shown in Household view) -->
+        <div id="partner-panel-savings" class="hidden max-w-5xl mx-auto"></div>
         <!-- Goal Tracking Chart -->
         <div id="goal-tracker-card" class="card max-w-5xl mx-auto">
           <div class="card-header">
@@ -507,18 +577,37 @@
       <!-- Assets Sub-panel -->
       <div id="inputs-sub-assets" class="input-sub-panel hidden space-y-6">
         <div id="form-assets"></div><!-- Populated by AssetsForm.js -->
+        <!-- Partner's shared assets (shown in Household view) -->
+        <div id="partner-panel-assets" class="hidden max-w-5xl mx-auto"></div>
       </div>
 
       <!-- Expenses Sub-panel -->
       <div id="inputs-sub-expenses" class="input-sub-panel hidden space-y-6">
         <div id="form-expenses"></div><!-- Populated by ExpensesForm.js -->
+        <!-- Partner's shared expenses (shown in Household view) -->
+        <div id="partner-panel-expenses" class="hidden max-w-5xl mx-auto"></div>
       </div>
 
       <!-- Goals Sub-panel -->
       <div id="inputs-sub-goals" class="input-sub-panel hidden space-y-6">
         <div id="form-goals"></div><!-- Populated by GoalsForm.js -->
+        <!-- Partner's shared goals (shown in Household view) -->
+        <div id="partner-panel-goals" class="hidden max-w-5xl mx-auto"></div>
       </div>
 
+      <!-- Liabilities Sub-panel -->
+      <div id="inputs-sub-liabilities" class="input-sub-panel hidden space-y-6">
+        <div id="form-liabilities"></div><!-- Populated by LiabilitiesForm.js -->
+        <!-- Partner's shared liabilities (shown in Household view) -->
+        <div id="partner-panel-liabilities" class="hidden max-w-5xl mx-auto"></div>
+      </div>
+
+      <!-- Family Profiles Sub-panel -->
+      <div id="inputs-sub-family" class="input-sub-panel hidden space-y-6">
+        <div id="form-family"></div><!-- Populated by FamilyForm.js (lazy-loaded) -->
+      </div>
+
+      </div><!-- /scrollable content area -->
     </section>
 
     <!-- ─────────────────────────────────────────────────────────

@@ -5,6 +5,7 @@
 
 import { GOAL_TYPES } from '@/utils/constants.js';
 import { formatRupee } from '@/utils/formatters.js';
+import { confirmDelete } from '@/utils/confirmDelete.js';
 
 const GOAL_ICONS = {
   EDUCATION: '\u{1F393}',
@@ -86,7 +87,14 @@ function renderGoalTable(container, goals, planStartYear, onUpdate, onEdit) {
     </div>`;
 
   listEl.querySelectorAll('.btn-delete-goal').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
+      const goal = goals.find(g => g.id === button.dataset.id);
+      const label = goal?.name || 'this goal';
+      const confirmed = await confirmDelete({
+        title: 'Delete Goal?',
+        message: `"${label}" will be permanently removed.`,
+      });
+      if (!confirmed) return;
       const updated = goals.filter((goal) => goal.id !== button.dataset.id);
       goals.splice(0, goals.length, ...updated);
       onUpdate('goals', [...goals]);
@@ -180,6 +188,21 @@ export function mountGoalsForm(container, state, onUpdate) {
               <p class="form-hint">Enter today's value &mdash; inflation is auto-applied</p>
             </div>
 
+            <div class="form-group">
+              <label class="form-label">Visibility</label>
+              <div class="vis-toggle" id="goal-visibility">
+                <button type="button" class="vis-btn active" data-vis="shared">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                  Shared
+                </button>
+                <button type="button" class="vis-btn" data-vis="private">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  Private
+                </button>
+              </div>
+              <p class="form-hint text-xs">Private goals only appear in Individual view</p>
+            </div>
+
             <div class="flex justify-end gap-3 pt-2">
               <button type="button" id="goal-form-cancel" class="btn-secondary text-sm">Cancel</button>
               <button type="submit" id="goal-form-submit" class="btn-primary flex items-center gap-2 text-sm">
@@ -200,8 +223,20 @@ export function mountGoalsForm(container, state, onUpdate) {
   const typeEl = container.querySelector('#goal-type');
   const yearEl = container.querySelector('#goal-year');
   const valueEl = container.querySelector('#goal-value');
+  const visToggle = container.querySelector('#goal-visibility');
 
   let editingId = null;
+  let currentVisibility = 'shared';
+
+  // Wire visibility toggle buttons
+  visToggle?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.vis-btn[data-vis]');
+    if (!btn) return;
+    currentVisibility = btn.dataset.vis;
+    visToggle.querySelectorAll('.vis-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.vis === currentVisibility),
+    );
+  });
 
   function openModal() {
     modal.classList.remove('hidden');
@@ -232,6 +267,10 @@ export function mountGoalsForm(container, state, onUpdate) {
     typeEl.value = goal.type || 'OTHER';
     yearEl.value = goal.targetYear || '';
     valueEl.value = indianFormat(goal.todayValue);
+    currentVisibility = goal.visibility || 'shared';
+    visToggle?.querySelectorAll('.vis-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.vis === currentVisibility),
+    );
     openModal();
   }
 
@@ -267,6 +306,7 @@ export function mountGoalsForm(container, state, onUpdate) {
       targetYear: year,
       todayValue: value,
       inflationRate: GOAL_TYPES[type]?.inflation ?? 0.08,
+      visibility: currentVisibility,
     };
 
     if (editingId) {

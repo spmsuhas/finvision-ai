@@ -14,7 +14,7 @@
 
 import { DEFAULTS, APP, INFLATION, almBlendedReturn } from './utils/constants.js';
 import { formatRupee, formatCompact } from './utils/formatters.js';
-import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding, computeHistoricalSIPByAsset } from './utils/financeEngine.js';
+import { buildCorpusTrajectory, calculatePlanHealth, sipFutureValue, computeSIPGoalFunding, computeHistoricalSIPByAsset, buildHouseholdInputs } from './utils/financeEngine.js';
 import { compareTaxRegimes } from './utils/taxEngine.js';
 import { Chart } from 'chart.js/auto';
 import { renderCorpusChart, renderCorpusPreview, destroyCorpusCharts } from './components/charts/CorpusChart.js';
@@ -26,11 +26,12 @@ import { mountAssetsForm, updateAssetSIPBadges } from './components/forms/Assets
 import { mountExpensesForm }        from './components/forms/ExpensesForm.js';
 import { mountGoalsForm }           from './components/forms/GoalsForm.js';
 import { mountSavingsForm }         from './components/forms/SavingsForm.js';
+import { mountLiabilitiesForm }     from './components/forms/LiabilitiesForm.js';
 import { generateExecutiveSummary, sendChatMessage } from './ai/aiAdvisor.js';
 import { generatePDFReport }       from './components/reports/PDFExport.js';
 import { onAuthStateChanged, signInWithGoogle, signInWithEmail, createAccount, signOut as fbSignOut, sendPasswordReset } from './firebase/auth.js';
 import { isFirebaseConfigured }    from './firebase/config.js';
-import { savePersonalDetails, loadPersonalDetails, savePlan, loadAllPlans, saveAISummary, loadAISummary } from './firebase/firestore.js';
+import { savePersonalDetails, loadPersonalDetails, savePlan, loadAllPlans, saveAISummary, loadAISummary, loadPartnerSnapshot } from './firebase/firestore.js';
 
 /* ═════════════════════════════════════════════════════════════
    GLOBAL APPLICATION STATE
@@ -58,21 +59,21 @@ const state = {
   monthlyMedicalPremium: 0,
   monthlyEMI:            0,
   expenseCategories: [
-    { id: 'rent',          label: 'Rent / Mortgage',     amount: 0, group: 'home'      },
-    { id: 'maintenance',   label: 'Maintenance',         amount: 0, group: 'home'      },
-    { id: 'electricity',   label: 'Electricity & Water', amount: 0, group: 'home'      },
-    { id: 'broadband',     label: 'Broadband / WiFi',    amount: 0, group: 'home'      },
-    { id: 'groceries',     label: 'Groceries',           amount: 0, group: 'food'      },
-    { id: 'dining',        label: 'Dining Out',          amount: 0, group: 'food'      },
-    { id: 'fuel',          label: 'Fuel',                amount: 0, group: 'transport' },
-    { id: 'vehicle',       label: 'Vehicle Maintenance', amount: 0, group: 'transport' },
-    { id: 'publictrans',   label: 'Public Transport',    amount: 0, group: 'transport' },
-    { id: 'school',        label: 'School / College',    amount: 0, group: 'education' },
-    { id: 'tuition',       label: 'Tuition / Coaching',  amount: 0, group: 'education' },
-    { id: 'subscriptions', label: 'Subscriptions / OTT', amount: 0, group: 'lifestyle' },
-    { id: 'shopping',      label: 'Shopping & Personal', amount: 0, group: 'lifestyle' },
-    { id: 'gym',           label: 'Gym / Wellness',      amount: 0, group: 'lifestyle' },
-    { id: 'others',        label: 'Miscellaneous',       amount: 0, group: 'other'     },
+    { id: 'rent',          label: 'Rent / Mortgage',     amount: 0, group: 'home',      visibility: 'shared' },
+    { id: 'maintenance',   label: 'Maintenance',         amount: 0, group: 'home',      visibility: 'shared' },
+    { id: 'electricity',   label: 'Electricity & Water', amount: 0, group: 'home',      visibility: 'shared' },
+    { id: 'broadband',     label: 'Broadband / WiFi',    amount: 0, group: 'home',      visibility: 'shared' },
+    { id: 'groceries',     label: 'Groceries',           amount: 0, group: 'food',      visibility: 'shared' },
+    { id: 'dining',        label: 'Dining Out',          amount: 0, group: 'food',      visibility: 'shared' },
+    { id: 'fuel',          label: 'Fuel',                amount: 0, group: 'transport', visibility: 'shared' },
+    { id: 'vehicle',       label: 'Vehicle Maintenance', amount: 0, group: 'transport', visibility: 'shared' },
+    { id: 'publictrans',   label: 'Public Transport',    amount: 0, group: 'transport', visibility: 'shared' },
+    { id: 'school',        label: 'School / College',    amount: 0, group: 'education', visibility: 'shared' },
+    { id: 'tuition',       label: 'Tuition / Coaching',  amount: 0, group: 'education', visibility: 'shared' },
+    { id: 'subscriptions', label: 'Subscriptions / OTT', amount: 0, group: 'lifestyle', visibility: 'shared' },
+    { id: 'shopping',      label: 'Shopping & Personal', amount: 0, group: 'lifestyle', visibility: 'shared' },
+    { id: 'gym',           label: 'Gym / Wellness',      amount: 0, group: 'lifestyle', visibility: 'shared' },
+    { id: 'others',        label: 'Miscellaneous',       amount: 0, group: 'other',     visibility: 'shared' },
   ],
 
   // Portfolio / Assets — ALM 4-group model
@@ -115,6 +116,23 @@ const state = {
   // Active Savings & SIPs
   activeSavings: [],
 
+  // Liabilities (loans)
+  liabilities: [],
+
+  /* ─── Linked Accounts (Decentralised Family Sync) ──────────── */
+  // Firebase UIDs of linked partner accounts.
+  linkedAccountIds: [],
+
+  // 'individual' = only primary user's data; 'household' = aggregate shared data.
+  viewMode: 'individual',
+
+  // Read-only snapshot of the linked partner's data.
+  // Populated by the sync handshake; NEVER mutated by updateState.
+  partnerData: null,
+
+  // Whether to include partner's assets in household aggregate.
+  shareAssets: true,
+
   // Plan metadata
   planStartYear:   DEFAULTS.PLAN_START_YEAR,
 
@@ -133,6 +151,28 @@ const state = {
 let _recalcTimer = null;
 let _isDirty     = false;
 let _autoSaveTimer = null;
+
+/* ═════════════════════════════════════════════════════════════
+   BACKWARD-COMPATIBILITY MIGRATION HELPERS
+   Run once at load-time and on every updateState() that touches
+   goals / activeSavings / liabilities / expenseCategories.
+═════════════════════════════════════════════════════════════ */
+
+/**
+ * Ensure every entry in an array has a visibility field.
+ * Converts legacy ownerId values: 'p1'/'joint' → 'shared', 'p2' → 'private'.
+ * Entries without ownerId default to 'shared'.
+ * Non-destructive — returns a new array.
+ */
+function migrateVisibility(arr = []) {
+  return arr.map(entry => {
+    if (Object.prototype.hasOwnProperty.call(entry, 'visibility')) return entry;
+    const ownerId = entry.ownerId;
+    const visibility = (ownerId === 'p2') ? 'private' : 'shared';
+    const { ownerId: _removed, ...rest } = entry; // strip legacy ownerId
+    return { ...rest, visibility };
+  });
+}
 
 function cleanupSavingsGoalLinks(activeSavings = [], goals = []) {
   const validGoalIds = new Set(goals.map(goal => goal.id));
@@ -169,8 +209,37 @@ function updateState(patch) {
     nextPatch.activeSavings = cleanupSavingsGoalLinks(currentSavings, nextGoals);
   }
 
+  // Migrate visibility on all data arrays (backward compat — converts ownerId to visibility)
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'goals'))
+    nextPatch.goals = migrateVisibility(nextPatch.goals);
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'activeSavings'))
+    nextPatch.activeSavings = migrateVisibility(nextPatch.activeSavings);
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'liabilities'))
+    nextPatch.liabilities = migrateVisibility(nextPatch.liabilities);
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'expenseCategories'))
+    nextPatch.expenseCategories = migrateVisibility(nextPatch.expenseCategories);
+
   Object.assign(state, nextPatch);
   _isDirty = true;
+
+  // Auto-derive monthlyEMI from liabilities so Expenses is always in sync
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'liabilities')) {
+    state.monthlyEMI = (state.liabilities ?? []).reduce((s, l) => s + (l.currentEMI || 0), 0);
+    // Refresh Expenses form so the read-only row updates
+    const expRoot = document.getElementById('form-expenses');
+    if (expRoot) {
+      import('./components/forms/ExpensesForm.js').then(({ mountExpensesForm }) => {
+        mountExpensesForm(expRoot, state, (field, value) => { updateState({ [field]: value }); });
+      });
+    }
+    // Update sidebar badge
+    const badge  = document.getElementById('sidebar-liabilities-count');
+    const count  = (state.liabilities ?? []).length;
+    if (badge) {
+      badge.textContent = String(count);
+      badge.classList.toggle('hidden', count === 0);
+    }
+  }
 
   if (Object.prototype.hasOwnProperty.call(nextPatch, 'goals')) {
     const savingsRoot = document.getElementById('form-savings');
@@ -201,36 +270,57 @@ function recalculate() {
   showRecalcIndicator(true);
 
   setTimeout(() => {
-    const inputs = {
-      currentAge:           state.currentAge,
-      retirementAge:        state.retirementAge,
-      annualIncome:         state.monthlyIncome * 12,
-      salaryRaiseRate:      state.salaryRaiseRate,
-      equityFraction:       state.equityPercent / 100,
-      currentEquity:        state.currentEquity,
-      currentDebt:          state.currentDebt,
-      currentEPF:           state.currentEPF,
-      currentGold:          state.currentGold,
-      currentRealEstate:    state.currentRealEstate,
-      currentCash:          state.currentCash,
-      currentAlternatives:  state.currentAlternatives,
-      inflationRate:        INFLATION.GENERAL,
-      monthlyExpenses:      state.monthlyExpenses,
-      monthlyMedicalPremium: state.monthlyMedicalPremium,
-      planStartYear:        state.planStartYear,
-      goals:                state.goals,
-      activeSavings:        state.activeSavings ?? [],
-    };
+    const viewMode = state.viewMode ?? 'individual';
 
+    // Build the trajectory inputs — individual or household aggregate
+    const inputs = (viewMode === 'household' && state.partnerData)
+      ? buildHouseholdInputs(state, state.partnerData)
+      : buildPrimaryInputs(state);
+
+    state._effectiveInputs = inputs;   // used by UI functions for household-aware display
     state.trajectory    = buildCorpusTrajectory(inputs);
-    state.taxComparison = compareTaxRegimes({ ...state.taxInputs, grossSalary: inputs.annualIncome });
+    state.taxComparison = compareTaxRegimes({ ...state.taxInputs, grossSalary: state.monthlyIncome * 12 });
     state.planHealth    = calculatePlanHealth(state.trajectory, state.goals);
-    state.goalFunding         = computeSIPGoalFunding(state.activeSavings, state.goals, state.planStartYear);
+
+    // Partner SIPs for goal split chart (only shared items in household view)
+    const partnerSavingsForGoals = (viewMode === 'household' && state.partnerData)
+      ? (state.partnerData.activeSavings || []).filter(s => (s.visibility ?? 'shared') === 'shared')
+      : [];
+
+    // Use combined goals from effective inputs so partner's shared goals appear in household view
+    state.goalFunding          = computeSIPGoalFunding(state.activeSavings, inputs.goals, state.planStartYear, partnerSavingsForGoals);
     state.historicalSIPByAsset = computeHistoricalSIPByAsset(state.activeSavings);
 
     updateAllUI();
     showRecalcIndicator(false);
   }, 0);
+}
+
+/**
+ * Build engine inputs from the primary (self) user’s state only.
+ */
+function buildPrimaryInputs(s) {
+  return {
+    currentAge:           s.currentAge,
+    retirementAge:        s.retirementAge,
+    annualIncome:         s.monthlyIncome * 12,
+    salaryRaiseRate:      s.salaryRaiseRate,
+    equityFraction:       s.equityPercent / 100,
+    currentEquity:        s.currentEquity,
+    currentDebt:          s.currentDebt,
+    currentEPF:           s.currentEPF,
+    currentGold:          s.currentGold,
+    currentRealEstate:    s.currentRealEstate,
+    currentCash:          s.currentCash,
+    currentAlternatives:  s.currentAlternatives,
+    inflationRate:        INFLATION.GENERAL,
+    monthlyExpenses:      s.monthlyExpenses,
+    monthlyMedicalPremium: s.monthlyMedicalPremium,
+    monthlyEMI:           s.monthlyEMI,
+    planStartYear:        s.planStartYear,
+    goals:                s.goals ?? [],
+    activeSavings:        s.activeSavings ?? [],
+  };
 }
 
 /* ═════════════════════════════════════════════════════════════
@@ -250,11 +340,17 @@ function updateAllUI() {
   updateGoalsPreview();
   renderGoalTrackingChart();
   updateAssetSIPBadges(document.getElementById('form-assets'), state.historicalSIPByAsset);
+  updateViewModeUI();
+  updatePartnerPanels();
 }
 
 function updateDashboardKPIs() {
-  const corpus = state.currentEquity + state.currentDebt + state.currentEPF;
-  const surplus = state.monthlyIncome - state.monthlyExpenses - state.monthlyMedicalPremium - state.monthlyEMI;
+  // Use household-merged inputs when in household view, otherwise primary state
+  const inp = state._effectiveInputs ?? buildPrimaryInputs(state);
+  const monthlyIncome = inp.annualIncome / 12;
+
+  const corpus  = (inp.currentEquity  || 0) + (inp.currentDebt  || 0) + (inp.currentEPF || 0);
+  const surplus = monthlyIncome - (inp.monthlyExpenses || 0) - (inp.monthlyMedicalPremium || 0) - (inp.monthlyEMI || 0);
   const yearsToRetire = state.retirementAge - state.currentAge;
 
   setText('kpi-current-corpus',  formatRupee(corpus));
@@ -278,20 +374,25 @@ function updateDashboardKPIs() {
     setText('kpi-required-corpus', '₹–');
   }
 
-  // Allocation displays
-  setText('alloc-equity-pct', `${state.equityPercent}%`);
-  setText('alloc-debt-pct',   `${state.debtPercent}%`);
-  const totalCorpus = state.currentEquity + state.currentDebt + state.currentEPF
-    + (state.currentGold || 0) + (state.currentRealEstate || 0)
-    + (state.currentCash || 0) + (state.currentAlternatives || 0);
+  // Allocation display — compute actual percentages from asset balances
+  const totalCorpus = (inp.currentEquity  || 0) + (inp.currentDebt  || 0) + (inp.currentEPF || 0)
+    + (inp.currentGold || 0) + (inp.currentRealEstate || 0)
+    + (inp.currentCash || 0) + (inp.currentAlternatives || 0);
+
+  const eqPct   = totalCorpus > 0 ? Math.round((inp.currentEquity  || 0) / totalCorpus * 100) : state.equityPercent;
+  const dbtPct  = totalCorpus > 0 ? Math.round(((inp.currentDebt || 0) + (inp.currentEPF || 0)) / totalCorpus * 100) : state.debtPercent;
+
+  setText('alloc-equity-pct', `${eqPct}%`);
+  setText('alloc-debt-pct',   `${dbtPct}%`);
+
   const blended = totalCorpus > 0
     ? almBlendedReturn({
-        equity:     state.currentEquity / totalCorpus,
-        debt:       (state.currentDebt + state.currentEPF) / totalCorpus,
-        gold:       (state.currentGold || 0) / totalCorpus,
-        realEstate: (state.currentRealEstate || 0) / totalCorpus,
-        cash:       (state.currentCash || 0) / totalCorpus,
-        alts:       (state.currentAlternatives || 0) / totalCorpus,
+        equity:     (inp.currentEquity  || 0) / totalCorpus,
+        debt:       ((inp.currentDebt   || 0) + (inp.currentEPF || 0)) / totalCorpus,
+        gold:       (inp.currentGold    || 0) / totalCorpus,
+        realEstate: (inp.currentRealEstate || 0) / totalCorpus,
+        cash:       (inp.currentCash    || 0) / totalCorpus,
+        alts:       (inp.currentAlternatives || 0) / totalCorpus,
       }, INFLATION.GENERAL)
     : 0;
   setText('blended-cagr', `${(blended * 100).toFixed(1)}%`);
@@ -334,27 +435,48 @@ function updateHealthBar() {
 }
 
 function updateCharts() {
+  const inp = state._effectiveInputs ?? buildPrimaryInputs(state);
+  const monthlyIncome = inp.annualIncome / 12;
+
   renderCorpusPreview('chart-corpus-preview', state.trajectory);
-  renderCorpusChart('chart-corpus-main', state.trajectory, state.goals);
+  renderCorpusChart('chart-corpus-main', state.trajectory, inp.goals ?? state.goals);
+
+  // Allocation percentages from actual combined asset balances
+  const totalAUM = (inp.currentEquity  || 0) + (inp.currentDebt || 0) + (inp.currentEPF || 0)
+    + (inp.currentGold || 0) + (inp.currentRealEstate || 0)
+    + (inp.currentCash || 0) + (inp.currentAlternatives || 0);
+  const equityPct     = totalAUM > 0 ? ((inp.currentEquity || 0) / totalAUM * 100) : state.equityPercent;
+  const debtPct       = totalAUM > 0 ? (((inp.currentDebt || 0) + (inp.currentEPF || 0)) / totalAUM * 100) : state.debtPercent;
+  const realAssetsPct = totalAUM > 0 ? (((inp.currentGold || 0) + (inp.currentRealEstate || 0)) / totalAUM * 100) : (state.realAssetsPercent || 0);
+  const cashPct       = totalAUM > 0 ? (((inp.currentCash || 0) + (inp.currentAlternatives || 0)) / totalAUM * 100) : (state.cashPercent || 0);
+
   renderAllocationChart('chart-allocation-donut', {
-    equityPct:     state.equityPercent,
-    debtPct:       state.debtPercent,
-    realAssetsPct: state.realAssetsPercent || 0,
-    cashPct:       state.cashPercent       || 0,
+    equityPct,
+    debtPct,
+    realAssetsPct,
+    cashPct,
   }, INFLATION.GENERAL);
+
+  // Expense chart — aggregate partner expenses into groups when in household mode
+  const expenseGroups = (state.expenseCategories || []).reduce((acc, c) => {
+    const g = c.group || 'other';
+    acc[g] = (acc[g] || 0) + (c.amount || 0);
+    return acc;
+  }, {});
+  const isHouseholdMode = state.viewMode === 'household' && !!state.partnerData;
+  if (isHouseholdMode && state.partnerData.monthlyExpenses) {
+    expenseGroups.other = (expenseGroups.other || 0) + state.partnerData.monthlyExpenses;
+  }
+
   renderExpenseChart('chart-expense-bar', {
-    income:     state.monthlyIncome,
-    groups:     (state.expenseCategories || []).reduce((acc, c) => {
-      const g = c.group || 'other';
-      acc[g] = (acc[g] || 0) + (c.amount || 0);
-      return acc;
-    }, {}),
-    medical:    state.monthlyMedicalPremium,
-    emi:        state.monthlyEMI,
+    income:     monthlyIncome,
+    groups:     expenseGroups,
+    medical:    inp.monthlyMedicalPremium,
+    emi:        inp.monthlyEMI,
     taxes:      state.taxComparison
       ? Math.round(state.taxComparison.newRegime.totalTax / 12)
       : 0,
-    investable: Math.max(0, state.monthlyIncome - state.monthlyExpenses - state.monthlyMedicalPremium - state.monthlyEMI),
+    investable: Math.max(0, monthlyIncome - (inp.monthlyExpenses || 0) - (inp.monthlyMedicalPremium || 0) - (inp.monthlyEMI || 0)),
   });
 }
 
@@ -384,13 +506,15 @@ function updateProjectionStats() {
 }
 
 function updateSidebarGoalsCount() {
+  const inp = state._effectiveInputs ?? buildPrimaryInputs(state);
   const el = document.getElementById('sidebar-goals-count');
-  if (el) el.textContent = String(state.goals.length);
+  if (el) el.textContent = String((inp.goals ?? state.goals).length);
 }
 
 function updateSidebarSIPsCount() {
+  const inp = state._effectiveInputs ?? buildPrimaryInputs(state);
   const el = document.getElementById('sidebar-sips-count');
-  if (el) el.textContent = String((state.activeSavings || []).length);
+  if (el) el.textContent = String((inp.activeSavings ?? state.activeSavings ?? []).length);
 }
 
 /* ─── Goal Tracking stacked bar chart ─────────────────────── */
@@ -403,7 +527,7 @@ function renderGoalTrackingChart() {
   const canvas = document.getElementById('chart-goal-tracking');
   if (!canvas) return;
 
-  if ((state.goals ?? []).length === 0) {
+  if ((( state._effectiveInputs?.goals ?? state.goals) ?? []).length === 0) {
     if (_goalTrackingChart) { _goalTrackingChart.destroy(); _goalTrackingChart = null; }
     if (card) card.classList.remove('hidden');
     if (chartWrap) chartWrap.classList.add('hidden');
@@ -429,27 +553,38 @@ function renderGoalTrackingChart() {
   const sipData     = entries.map(([, v]) => Math.round(v.sipContrib));
   const deficitData = entries.map(([, v]) => Math.round(v.deficit));
 
+  const isHousehold = state.viewMode === 'household' && !!state.partnerData;
+  const partnerData = isHousehold ? entries.map(([, v]) => Math.round(v.partnerContrib || 0)) : null;
+
   // Destroy previous instance
   if (_goalTrackingChart) { _goalTrackingChart.destroy(); _goalTrackingChart = null; }
+
+  const datasets = [
+    {
+      label: isHousehold ? 'My Contributions' : 'SIP Contributions',
+      data: sipData,
+      backgroundColor: 'rgba(52, 211, 153, 0.75)',
+      borderRadius: 4,
+    },
+    ...(isHousehold && partnerData ? [{
+      label: "Partner's Contributions",
+      data: partnerData,
+      backgroundColor: 'rgba(99, 179, 237, 0.75)',
+      borderRadius: 4,
+    }] : []),
+    {
+      label: 'Remaining Deficit',
+      data: deficitData,
+      backgroundColor: 'rgba(248, 113, 113, 0.65)',
+      borderRadius: 4,
+    },
+  ];
 
   _goalTrackingChart = new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
-      datasets: [
-        {
-          label: 'SIP Contributions',
-          data: sipData,
-          backgroundColor: 'rgba(52, 211, 153, 0.75)',
-          borderRadius: 4,
-        },
-        {
-          label: 'Remaining Deficit',
-          data: deficitData,
-          backgroundColor: 'rgba(248, 113, 113, 0.65)',
-          borderRadius: 4,
-        },
-      ],
+      datasets,
     },
     options: {
       indexAxis: 'y',
@@ -571,7 +706,11 @@ function updateGoalsPreview() {
   if (!list) return;
   const currentYear = state.planStartYear ?? new Date().getFullYear();
 
-  if (!state.goals || state.goals.length === 0) {
+  // In household mode, show combined goals (primary + partner's shared)
+  const inp = state._effectiveInputs ?? buildPrimaryInputs(state);
+  const goals = inp.goals ?? state.goals ?? [];
+
+  if (!goals || goals.length === 0) {
     list.innerHTML = `<div class="text-center py-6 text-slate-500 text-sm">
       <p class="text-2xl mb-1">🎯</p>No goals yet — add them in the Inputs section.
     </div>`;
@@ -579,14 +718,16 @@ function updateGoalsPreview() {
   }
 
   const ICONS = { EDUCATION: '🎓', MARRIAGE: '💍', PROPERTY: '🏠', VEHICLE: '🚗', TRAVEL: '✈️', RETIREMENT: '🏖️', OTHER: '🎯' };
-  list.innerHTML = state.goals.map(g => {
+  const isHousehold = state.viewMode === 'household' && !!state.partnerData;
+  list.innerHTML = goals.map(g => {
     const years = g.targetYear ? Math.max(0, g.targetYear - currentYear) : 0;
     const inflated = g.todayValue * Math.pow(1 + (g.inflationRate ?? 0.08), years);
+    const isPartnerGoal = isHousehold && !!(state.partnerData?.goals || []).find(pg => pg.id === g.id);
     return `
     <div class="goal-preview-item flex items-center gap-3 py-2 border-b border-white/5 last:border-0">
       <span class="text-xl">${ICONS[g.type] ?? '🎯'}</span>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-white truncate">${g.name}</p>
+        <p class="text-sm font-medium text-white truncate">${g.name}${isPartnerGoal ? ' <span class="text-xs text-blue-400 ml-1">Partner</span>' : ''}</p>
         <p class="text-xs text-slate-400">${g.targetYear ? `${g.targetYear} · ${years}y away` : '–'}</p>
       </div>
       <div class="text-right shrink-0">
@@ -641,7 +782,7 @@ function navigateTo(sectionId, subSection = null) {
 }
 
 function switchInputSubSection(subId) {
-  const subs = ['personal', 'savings', 'assets', 'expenses', 'goals'];
+  const subs = ['personal', 'savings', 'assets', 'expenses', 'goals', 'liabilities', 'family'];
   subs.forEach(id => {
     const panel = document.getElementById(`inputs-sub-${id}`);
     const tab   = document.querySelector(`.input-tab[data-sub="${id}"]`);
@@ -786,6 +927,18 @@ async function handleAuthStateChange(user) {
         // Restore state fields from saved profile (excluding uid/computed fields)
         const { updatedAt, ...saved } = details;
         Object.assign(state, saved);
+        // Restore partner data if this account was previously linked
+        if ((state.linkedAccountIds ?? []).length > 0) {
+          try {
+            const partnerSnap = await loadPartnerSnapshot(user.uid);
+            if (partnerSnap) state.partnerData = partnerSnap;
+          } catch (_) { /* non-critical — household view degrades gracefully */ }
+        }
+        // Migrate visibility on all arrays for backward compatibility
+        state.goals           = migrateVisibility(state.goals ?? []);
+        state.activeSavings   = migrateVisibility(state.activeSavings ?? []);
+        state.liabilities     = migrateVisibility(state.liabilities ?? []);
+        state.expenseCategories = migrateVisibility(state.expenseCategories ?? []);
         // Re-render all forms so inputs reflect the loaded values
         mountAllForms();
         recalculate();
@@ -1002,6 +1155,18 @@ function mountAllForms() {
   mountSavingsForm(container('form-savings'), state, (field, value) => {
     updateState({ [field]: value });
   });
+
+  mountLiabilitiesForm(container('form-liabilities'), state, (field, value) => {
+    updateState({ [field]: value });
+  });
+
+  // Family Sync form (lazy-loaded — only needed when user opens the Family tab)
+  const familyContainer = container('form-family');
+  if (familyContainer) {
+    import('./components/forms/FamilySyncForm.js').then(({ mountFamilySyncForm }) => {
+      mountFamilySyncForm(familyContainer, state, { updateState, showToast, scheduleRecalculation });
+    });
+  }
 }
 
 /* ═════════════════════════════════════════════════════════════
@@ -1009,6 +1174,31 @@ function mountAllForms() {
 ═════════════════════════════════════════════════════════════ */
 
 function bindEvents() {
+  // ── Theme toggle ─────────────────────────────────────────────
+  (() => {
+    const btn  = document.getElementById('btn-theme-toggle');
+    const sun  = document.getElementById('theme-icon-sun');
+    const moon = document.getElementById('theme-icon-moon');
+    if (!btn) return;
+
+    // Sync icon to current theme on mount
+    const _syncIcons = () => {
+      const isLight = document.documentElement.classList.contains('light');
+      sun?.classList.toggle('hidden',  isLight);
+      moon?.classList.toggle('hidden', !isLight);
+    };
+    _syncIcons();
+
+    btn.addEventListener('click', () => {
+      const h = document.documentElement;
+      const goLight = !h.classList.contains('light');
+      h.classList.toggle('light',  goLight);
+      h.classList.toggle('dark',  !goLight);
+      localStorage.setItem('fv-theme', goLight ? 'light' : 'dark');
+      _syncIcons();
+    });
+  })();
+
   // ── Section navigation via nav-tabs and sidebar-links ────────
   document.addEventListener('click', (e) => {
     const navBtn = e.target.closest('[data-section]');
@@ -1292,8 +1482,11 @@ function bindEvents() {
         expenseCategories: state.expenseCategories,
         goals: state.goals,
         activeSavings: state.activeSavings ?? [],
+        liabilities: state.liabilities ?? [],
         taxInputs: state.taxInputs,
         planHealth: state.planHealth,
+        linkedAccountIds: state.linkedAccountIds ?? [],
+        viewMode: state.viewMode ?? 'individual',
       });
       showToast('Plan saved ✓', 'success');
     } catch (err) {
@@ -1321,6 +1514,7 @@ function bindEvents() {
         monthlyMedicalPremium: state.monthlyMedicalPremium, monthlyEMI: state.monthlyEMI,
         retirementAge: state.retirementAge, goals: state.goals,
         activeSavings: state.activeSavings ?? [],
+        liabilities: state.liabilities ?? [],
         taxInputs: state.taxInputs, planHealth: state.planHealth,
       });
       showToast('Plan saved to cloud ✓', 'success');
@@ -1339,6 +1533,19 @@ function bindEvents() {
   if (reportNameInput && !reportNameInput.value) {
     reportNameInput.value = state.userName;
   }
+
+  // ── View Mode Toggle (Individual ↔ Household) ─────────────
+  document.addEventListener('click', (e) => {
+    const modeBtn = e.target.closest('.view-mode-btn[data-mode]');
+    if (!modeBtn) return;
+    const mode = modeBtn.dataset.mode;
+    state.viewMode = mode;
+    _isDirty = true;
+    document.querySelectorAll('.view-mode-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.mode === mode),
+    );
+    scheduleRecalculation();
+  });
 }
 
 /* ═════════════════════════════════════════════════════════════
@@ -1418,8 +1625,233 @@ function escapeHTML(str) {
 }
 
 /* ═════════════════════════════════════════════════════════════
-   APPLICATION BOOT
+   HOUSEHOLD CONTEXT UI
+   Updates the dashboard context toggle + AI tax insight card
+   whenever the context changes or a spouse profile is added.
 ═════════════════════════════════════════════════════════════ */
+
+function updateViewModeUI() {
+  const toggle = document.getElementById('view-mode-toggle');
+  const hasPartner = !!state.partnerData;
+
+  // Show nav toggle only when a partner account is linked
+  if (toggle) toggle.classList.toggle('hidden', !hasPartner);
+
+  // Sync button active states
+  const mode = state.viewMode ?? 'individual';
+  document.querySelectorAll('.view-mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.mode === mode),
+  );
+
+  // Show/hide household mode banner on dashboard
+  const banner = document.getElementById('household-mode-banner');
+  const isHousehold = mode === 'household' && hasPartner;
+  if (banner) banner.classList.toggle('hidden', !isHousehold);
+  if (isHousehold) {
+    const nameEl = document.getElementById('household-partner-name');
+    if (nameEl) nameEl.textContent = state.partnerData.name || 'your partner';
+  }
+
+  // Update old household insight card if present
+  const insightCard = document.getElementById('household-tax-insight');
+  if (insightCard) insightCard.classList.add('hidden');
+
+  // Update old context toggle if present
+  const ctxToggle = document.getElementById('household-context-toggle');
+  if (ctxToggle) ctxToggle.classList.add('hidden');
+}
+
+/* ═════════════════════════════════════════════════════════════
+   PARTNER PANELS
+   Renders read-only partner data sections below each My Plan
+   sub-tab when in Household view. Hidden in Individual view.
+═════════════════════════════════════════════════════════════ */
+
+function updatePartnerPanels() {
+  const isHousehold = state.viewMode === 'household' && !!state.partnerData;
+  const p = state.partnerData;
+  const PANEL_IDS = ['savings', 'assets', 'expenses', 'goals', 'liabilities'];
+
+  if (!isHousehold) {
+    PANEL_IDS.forEach(id => {
+      const el = document.getElementById(`partner-panel-${id}`);
+      if (el) { el.classList.add('hidden'); el.innerHTML = ''; }
+    });
+    return;
+  }
+
+  const partnerName = p.name || 'Partner';
+  const sharedSavings     = (p.activeSavings || []).filter(s => (s.visibility ?? 'shared') === 'shared');
+  const sharedLiabilities = (p.liabilities   || []).filter(l => (l.visibility ?? 'shared') === 'shared');
+  const sharedGoals       = (p.goals         || []).filter(g => (g.visibility ?? 'shared') === 'shared');
+  const currentYear       = state.planStartYear ?? new Date().getFullYear();
+
+  // ── Helper: render a section header ─────────────────────────
+  function partnerHeader(label) {
+    return `
+      <div class="card bg-blue-500/6 border border-blue-500/20">
+        <h3 class="flex items-center gap-2 text-sm font-semibold text-blue-300 mb-1">
+          <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857
+                 M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857
+                 m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          ${escapeHTML(partnerName)}'s Shared ${label}
+          <span class="ml-auto text-xs font-normal text-blue-400/70 italic">Read-only · Household view</span>
+        </h3>
+      </div>`;
+  }
+
+  // ── INVESTMENTS ──────────────────────────────────────────────
+  const savingsPanel = document.getElementById('partner-panel-savings');
+  if (savingsPanel) {
+    savingsPanel.classList.remove('hidden');
+    if (sharedSavings.length === 0) {
+      savingsPanel.innerHTML = partnerHeader('Investments') +
+        `<p class="text-xs text-slate-500 text-center py-3">No shared investments from ${escapeHTML(partnerName)}.</p>`;
+    } else {
+      const rows = sharedSavings.map(s => `
+        <div class="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0 gap-3">
+          <div class="min-w-0">
+            <p class="text-sm text-white font-medium truncate">${escapeHTML(s.name || s.type)}</p>
+            <p class="text-xs text-slate-500">${escapeHTML(s.instrumentLabel || s.type)} · ${((s.annualRate || 0) * 100).toFixed(1)}% p.a. · <span class="text-slate-400">from ${s.startDate || '—'}</span></p>
+          </div>
+          <p class="text-sm font-semibold text-emerald-400 shrink-0">${formatRupee(s.monthlyAmount)}<span class="text-xs text-slate-500">/mo</span></p>
+        </div>`).join('');
+      savingsPanel.innerHTML = partnerHeader('Investments') +
+        `<div class="card"><div class="divide-y divide-white/0">${rows}</div>
+         <div class="flex justify-between items-center pt-3 mt-1 border-t border-white/10">
+           <span class="text-xs text-slate-400">Total shared monthly SIPs</span>
+           <span class="text-sm font-bold text-emerald-400">${formatRupee(sharedSavings.reduce((s, i) => s + i.monthlyAmount, 0))}/mo</span>
+         </div></div>`;
+    }
+  }
+
+  // ── ASSETS ───────────────────────────────────────────────────
+  const assetsPanel = document.getElementById('partner-panel-assets');
+  if (assetsPanel) {
+    assetsPanel.classList.remove('hidden');
+    const shareEnabled = p.shareAssets !== false;
+    const assetRows = [
+      { label: 'Equity',        val: p.currentEquity       || 0, icon: '📈' },
+      { label: 'Debt',          val: p.currentDebt         || 0, icon: '🏦' },
+      { label: 'EPF / PF',      val: p.currentEPF          || 0, icon: '📋' },
+      { label: 'Gold',          val: p.currentGold         || 0, icon: '🥇' },
+      { label: 'Real Estate',   val: p.currentRealEstate   || 0, icon: '🏠' },
+      { label: 'Cash',          val: p.currentCash         || 0, icon: '💵' },
+      { label: 'Alternatives',  val: p.currentAlternatives || 0, icon: '💎' },
+    ].filter(r => r.val > 0);
+    const totalAssets = assetRows.reduce((s, r) => s + r.val, 0);
+
+    if (!shareEnabled) {
+      assetsPanel.innerHTML = partnerHeader('Assets') +
+        `<div class="card"><p class="text-xs text-slate-500 text-center py-2">${escapeHTML(partnerName)} has opted to keep assets private in this household view.</p></div>`;
+    } else if (assetRows.length === 0) {
+      assetsPanel.innerHTML = partnerHeader('Assets') +
+        `<p class="text-xs text-slate-500 text-center py-3">No asset balances shared by ${escapeHTML(partnerName)}.</p>`;
+    } else {
+      const rows = assetRows.map(r => `
+        <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+          <span class="text-sm text-slate-300">${r.icon} ${r.label}</span>
+          <span class="text-sm font-semibold text-white">${formatRupee(r.val)}</span>
+        </div>`).join('');
+      assetsPanel.innerHTML = partnerHeader('Assets') +
+        `<div class="card">${rows}
+         <div class="flex justify-between items-center pt-3 mt-1 border-t border-white/10">
+           <span class="text-xs text-slate-400">Total shared assets</span>
+           <span class="text-sm font-bold text-white">${formatRupee(totalAssets)}</span>
+         </div></div>`;
+    }
+  }
+
+  // ── EXPENSES ─────────────────────────────────────────────────
+  const expensesPanel = document.getElementById('partner-panel-expenses');
+  if (expensesPanel) {
+    expensesPanel.classList.remove('hidden');
+    const expRows = [
+      { label: 'Monthly Expenses', val: p.monthlyExpenses        || 0, color: 'text-rose-400' },
+      { label: 'Medical Premium',  val: p.monthlyMedicalPremium  || 0, color: 'text-pink-400' },
+    ].filter(r => r.val > 0);
+    const sharedEMI = sharedLiabilities.reduce((s, l) => s + (l.currentEMI || 0), 0);
+    if (sharedEMI > 0) expRows.push({ label: 'Shared EMIs', val: sharedEMI, color: 'text-orange-400' });
+    const totalExp = expRows.reduce((s, r) => s + r.val, 0);
+
+    if (expRows.length === 0) {
+      expensesPanel.innerHTML = partnerHeader('Expenses') +
+        `<p class="text-xs text-slate-500 text-center py-3">No shared expense data from ${escapeHTML(partnerName)}.</p>`;
+    } else {
+      const rows = expRows.map(r => `
+        <div class="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
+          <span class="text-sm text-slate-300">${r.label}</span>
+          <span class="text-sm font-semibold ${r.color}">${formatRupee(r.val)}/mo</span>
+        </div>`).join('');
+      expensesPanel.innerHTML = partnerHeader('Expenses') +
+        `<div class="card">${rows}
+         <div class="flex justify-between items-center pt-3 mt-1 border-t border-white/10">
+           <span class="text-xs text-slate-400">Total shared monthly outflows</span>
+           <span class="text-sm font-bold text-rose-400">${formatRupee(totalExp)}/mo</span>
+         </div>
+         <p class="text-xs text-slate-500 mt-2">Combined monthly income: <strong class="text-white">${formatRupee(p.monthlyIncome || 0)}</strong></p>
+         </div>`;
+    }
+  }
+
+  // ── GOALS ────────────────────────────────────────────────────
+  const goalsPanel = document.getElementById('partner-panel-goals');
+  if (goalsPanel) {
+    goalsPanel.classList.remove('hidden');
+    const GOAL_ICONS = { EDUCATION: '🎓', MARRIAGE: '💍', PROPERTY: '🏠', VEHICLE: '🚗', TRAVEL: '✈️', RETIREMENT: '🏖️', OTHER: '🎯' };
+    if (sharedGoals.length === 0) {
+      goalsPanel.innerHTML = partnerHeader('Goals') +
+        `<p class="text-xs text-slate-500 text-center py-3">No shared goals from ${escapeHTML(partnerName)}.</p>`;
+    } else {
+      const rows = sharedGoals.map(g => {
+        const years    = g.targetYear ? Math.max(0, g.targetYear - currentYear) : 0;
+        const inflated = g.todayValue * Math.pow(1 + (g.inflationRate ?? 0.08), years);
+        return `
+        <div class="flex items-center gap-3 py-2.5 border-b border-white/5 last:border-0">
+          <span class="text-xl shrink-0">${GOAL_ICONS[g.type] ?? '🎯'}</span>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-white truncate">${escapeHTML(g.name)}</p>
+            <p class="text-xs text-slate-500">${g.targetYear ? `${g.targetYear} · ${years}y away` : '—'}</p>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-sm font-semibold text-brand">${formatRupee(inflated)}</p>
+            <p class="text-xs text-slate-500">inflated cost</p>
+          </div>
+        </div>`;
+      }).join('');
+      goalsPanel.innerHTML = partnerHeader('Goals') + `<div class="card">${rows}</div>`;
+    }
+  }
+
+  // ── LIABILITIES ──────────────────────────────────────────────
+  const liabPanel = document.getElementById('partner-panel-liabilities');
+  if (liabPanel) {
+    liabPanel.classList.remove('hidden');
+    if (sharedLiabilities.length === 0) {
+      liabPanel.innerHTML = partnerHeader('Liabilities') +
+        `<p class="text-xs text-slate-500 text-center py-3">No shared liabilities from ${escapeHTML(partnerName)}.</p>`;
+    } else {
+      const rows = sharedLiabilities.map(l => `
+        <div class="flex items-center justify-between py-2.5 border-b border-white/5 last:border-0 gap-3">
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-white truncate">${escapeHTML(l.name || l.type)}</p>
+            <p class="text-xs text-slate-500">${(l.annualRate * 100).toFixed(1)}% · ${l.tenureMonths}m tenure · bal ${formatCompact(l.outstandingBalance)}</p>
+          </div>
+          <p class="text-sm font-semibold text-orange-400 shrink-0">${formatRupee(l.currentEMI)}<span class="text-xs text-slate-500">/mo</span></p>
+        </div>`).join('');
+      const totalEMI = sharedLiabilities.reduce((s, l) => s + l.currentEMI, 0);
+      liabPanel.innerHTML = partnerHeader('Liabilities') +
+        `<div class="card">${rows}
+         <div class="flex justify-between items-center pt-3 mt-1 border-t border-white/10">
+           <span class="text-xs text-slate-400">Total shared monthly EMI</span>
+           <span class="text-sm font-bold text-orange-400">${formatRupee(totalEMI)}/mo</span>
+         </div></div>`;
+    }
+  }
+}
 
 function initApp() {
   // Set current FY in header
@@ -1471,8 +1903,11 @@ function initApp() {
       expenseCategories: state.expenseCategories,
       goals: state.goals,
       activeSavings: state.activeSavings ?? [],
+      liabilities: state.liabilities ?? [],
       taxInputs: state.taxInputs,
       planHealth: state.planHealth,
+      linkedAccountIds: state.linkedAccountIds ?? [],
+      viewMode: state.viewMode ?? 'individual',
     };
     try {
       await savePersonalDetails(state.uid, payload);

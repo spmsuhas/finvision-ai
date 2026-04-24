@@ -46,6 +46,8 @@ updateState({ field: value });      // sets _isDirty = true, triggers debounced 
 
 Never mutate `state` directly outside `updateState()`.
 
+**Exception:** `state.partnerData` is always set directly (never via `updateState()`) because it is a read-only snapshot from the partner's account and must not trigger the standard dirty/save cycle.
+
 ### Dirty Flag & Auto-Save
 
 ```js
@@ -91,18 +93,36 @@ The app must remain fully functional offline (no Firebase errors shown to user).
 /Users/{uid}/FinVision/data/Personal_Details/profile   ← all plan state (single doc)
 /Users/{uid}/FinVision/data/Financial_Plans/{planId}   ← named plan scenarios
 /Users/{uid}/FinVision/data/AI_Summaries/latest        ← cached AI summary
+/Users/{uid}/FinVision/data/Linked_Account/partner     ← persisted partner snapshot (survives refresh)
+/SyncCodes/{code}                                      ← top-level, 24-h TTL, any auth user can read
 ```
 
 - Path is always 6 segments (even) — `Users/{uid}/FinVision/data/{sub}/{docId}`
 - Firestore rules use capital-U `Users`: `match /Users/{userId}/{document=**}`
-- **All fields saved to `Personal_Details/profile`** must be explicitly listed in the `savePersonalDetails()` call — missing fields are lost on reload. Current saved fields include `activeSavings`.
+- **All fields saved to `Personal_Details/profile`** must be explicitly listed in the `savePersonalDetails()` call — missing fields are lost on reload. Current saved fields include `activeSavings`, `liabilities`, `linkedAccountIds`, `viewMode`.
+- `partnerData` is **never** saved to `Personal_Details/profile` — it is persisted separately via `savePartnerSnapshot()` / `loadPartnerSnapshot()` under `Linked_Account/partner`.
+
+### Firestore Security Rules (required additions)
+
+```
+match /SyncCodes/{code} {
+  allow read:          if request.auth != null;
+  allow create:        if request.auth != null && request.auth.uid == request.resource.data.uid;
+  allow update, delete: if request.auth != null && request.auth.uid == resource.data.uid;
+}
+```
 
 ### Data Load on Login
 
-After `loadPersonalDetails()` returns, call `mountAllForms()` then `recalculate()` so loaded values render into the UI:
+After `loadPersonalDetails()` returns, restore partner data if previously linked, then call `mountAllForms()` and `recalculate()`:
 
 ```js
 Object.assign(state, saved);
+// Restore partner snapshot if account was previously linked
+if ((state.linkedAccountIds ?? []).length > 0) {
+  const partnerSnap = await loadPartnerSnapshot(user.uid);
+  if (partnerSnap) state.partnerData = partnerSnap;
+}
 mountAllForms();
 recalculate();
 ```
@@ -127,7 +147,8 @@ On `initApp()`, the hash is read and `navigateTo()` is called to restore the las
 const SECTIONS = ['dashboard', 'inputs', 'projections', 'tax', 'ai', 'reports'];
 ```
 
-Input sub-tabs: `personal`, `assets`, `expenses`, `goals`, `savings` (note: "savings" is the panel id even though the tab label is "Investments").
+Input sub-tabs: `personal`, `assets`, `expenses`, `goals`, `savings`, `liabilities`, `family`
+(note: "savings" is the panel id even though the tab label is "Investments").
 
 ## Code Style
 
@@ -150,31 +171,36 @@ All phases complete. Feature additions are incremental — no phase gating requi
 | 5 | Firebase Auth + Firestore + Gemini AI + PDF export | ✅ |
 | 6 | Investments tab, auto-save, hash routing | ✅ |
 | 7 | SIP compounding fix, investment families, CAGR from declared rates, row breakdown popup | ✅ |
+| 8 | Decentralised Linked Accounts — Family Sync, Household view, visibility toggles, Liabilities tab | ✅ |
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `src/main.js` | Bootstrap, state, all event binding, auto-save interval, hash routing |
+| `src/main.js` | Bootstrap, state, all event binding, auto-save interval, hash routing, household view orchestration |
 | `src/components/forms/PersonalDetailsForm.js` | Name (auto-filled from Google account), DOB (calendar popup on click), retirement age, income, salary raise |
-| `src/components/forms/AssetsForm.js` | 4 ALM groups: debt, equity, real assets, cash — with tooltips |
-| `src/components/forms/ExpensesForm.js` | 6 categorised expense cards + medical + EMI |
-| `src/components/forms/GoalsForm.js` | Life goals with type, target year, today's value |
-| `src/components/forms/SavingsForm.js` | **Investments tab** — recurring SIPs/RDs/PPF/NPS with user-editable rate, goal/asset linking, calendar month pickers |
+| `src/components/forms/AssetsForm.js` | 4 ALM groups: debt, equity, real assets, cash — with tooltips + share-assets toggle in household mode |
+| `src/components/forms/ExpensesForm.js` | 6 categorised expense cards + medical + EMI — visibility toggle per category |
+| `src/components/forms/GoalsForm.js` | Life goals with type, target year, today's value — Shared/Private visibility toggle |
+| `src/components/forms/SavingsForm.js` | **Investments tab** — recurring SIPs/RDs/PPF/NPS with user-editable rate, goal/asset linking, calendar month pickers, visibility toggle |
+| `src/components/forms/LiabilitiesForm.js` | Loans/EMIs with outstanding balance, rate, tenure — visibility toggle |
+| `src/components/forms/FamilySyncForm.js` | **Family tab** — sync-code handshake to link partner accounts; shows shared data summary + generate-code in both linked/unlinked states |
+| `src/components/forms/FamilyForm.js` | Family member entry form |
 | `src/components/charts/CorpusChart.js` | Corpus growth area chart |
 | `src/components/charts/AllocationChart.js` | Asset allocation doughnut chart |
 | `src/components/charts/ExpenseChart.js` | Expense breakdown pie chart |
 | `src/components/tables/ProjectionTable.js` | Year-by-year projection table |
 | `src/firebase/config.js` | Firebase init — reads from `.env.local` |
 | `src/firebase/auth.js` | Google OAuth + email/password auth |
-| `src/firebase/firestore.js` | Firestore CRUD for plans + AI summaries |
+| `src/firebase/firestore.js` | Firestore CRUD for plans, AI summaries, sync codes, partner snapshots |
 | `src/ai/aiAdvisor.js` | Gemini 2.0-flash dual-path (SDK + REST fallback) |
 | `src/components/reports/PDFExport.js` | jsPDF + html2canvas multi-page report |
 | `src/utils/constants.js` | `DEFAULTS`, `APP`, `INFLATION`, `GOAL_TYPES`, `SIP_TYPES`, `sipRate()` constants |
-| `src/utils/financeEngine.js` | `buildCorpusTrajectory()` (includes SIP contributions), `computeSIPGoalFunding()`, `sipFutureValue()`, `computeEffectiveRatesByAssetClass()` |
+| `src/utils/financeEngine.js` | `buildCorpusTrajectory()`, `buildHouseholdInputs()`, `computeSIPGoalFunding()`, `sipFutureValue()`, `computeEffectiveRatesByAssetClass()` |
 | `src/utils/taxEngine.js` | `compareTaxRegimes()` old vs new regime |
 | `src/utils/formatters.js` | `formatRupee()`, `formatCompact()` Indian currency |
-| `src/styles/main.css` | Design tokens, form CSS, tooltips, dark theme overrides |
+| `src/utils/confirmDelete.js` | Reusable confirmation modal — `confirmDelete({ title, message, confirmLabel })` returns `Promise<boolean>` |
+| `src/styles/main.css` | Design tokens, form CSS, tooltips, dark theme overrides, vis-toggle + view-mode-btn styles |
 | `.env.local` | Firebase + Gemini secrets (gitignored) |
 
 ## Investments Tab (SavingsForm)
@@ -228,9 +254,10 @@ Each instrument has its own `rate` and `assetClass`. `INSTRUMENT_LOOKUP` map pro
 ### Engine integration
 
 - `buildCorpusTrajectory()` accepts `activeSavings` — adds monthly SIP contributions to each year's closing balance
-- `computeSIPGoalFunding(activeSavings, goals, planStartYear)` returns a `Map<goalId, {name, sipContrib, goalInflatedCost, deficit}>`
+- `computeSIPGoalFunding(activeSavings, goals, planStartYear, partnerActiveSavings?)` — 4th param is partner's shared SIPs; returns `Map<goalId, {name, sipContrib, partnerContrib, goalInflatedCost, deficit}>`. In `recalculate()` pass `inputs.goals` (not `state.goals`) so partner goals appear in household mode.
 - `sipFutureValue(monthlyAmount, annualRate, months)` — standard annuity FV formula
-- `computeEffectiveRatesByAssetClass(activeSavings, inflationRate)` — returns weighted-average rates per asset class derived from declared investments; used by `buildCorpusTrajectory` to compute CAGR (falls back to `RETURNS.*` defaults when no investments declared for that class)
+- `computeEffectiveRatesByAssetClass(activeSavings, inflationRate)` — weighted-average rates per asset class; used by `buildCorpusTrajectory` for CAGR
+- `buildHouseholdInputs(primaryState, partnerData)` — merges primary + partner's shared items into a single inputs object
 
 ## UI / UX Conventions
 
@@ -315,7 +342,85 @@ Pure CSS hover tooltips — `.asset-info-wrap` (relative) + `.asset-info-bubble`
 
 Clicking any row in the projection table opens `#row-breakdown-modal` — a `modal-overlay` with `z-index: 60`. Content is typed out character-by-character (5 ms/char, 20 ms line pause) by `_typeLines()`. Three sections: **Income & Expenses**, **Corpus Growth**, **Closing Balance**. A "Skip ▶" button sets `skipRef.skip = true` to flush remaining text instantly. Clicking the backdrop or × closes the modal.
 
+### Confirmation Dialog
+
+`confirmDelete({ title, message, confirmLabel? })` in `src/utils/confirmDelete.js` — shows a modal and returns `Promise<boolean>`. `confirmLabel` defaults to `'Delete'` but can be overridden (e.g. `'Unlink'`). Used before any destructive action.
+
+```js
+const ok = await confirmDelete({ title: 'Unlink?', message: '...', confirmLabel: 'Unlink' });
+if (!ok) return;
+```
+
+## Household View & Family Sync
+
+### State fields
+
+```js
+linkedAccountIds: [],        // array of partner UIDs — length > 0 means linked
+viewMode: 'individual',      // 'individual' | 'household'
+partnerData: null,           // read-only partner profile snapshot — NEVER set via updateState()
+shareAssets: true,           // whether this user's assets are included in household totals
+```
+
+**`partnerData` rule:** Always set directly on `state`, never through `updateState()`. It is persisted via `savePartnerSnapshot()` / `loadPartnerSnapshot()` (not in `Personal_Details/profile`).
+
+### Visibility flags
+
+Every item in `goals`, `activeSavings`, `liabilities`, and `expenseCategories` carries:
+
+```js
+visibility: 'shared' | 'private'   // 'shared' = visible to partner in household view
+```
+
+`migrateVisibility(arr)` in `main.js` back-fills older records that have `ownerId` instead.
+
+### recalculate() household path
+
+```js
+const inputs = (viewMode === 'household' && state.partnerData)
+  ? buildHouseholdInputs(state, state.partnerData)   // merged inputs
+  : buildPrimaryInputs(state);                        // primary only
+
+state._effectiveInputs = inputs;   // all UI reads from here, not state.* directly
+state.goalFunding = computeSIPGoalFunding(
+  state.activeSavings, inputs.goals,   // ← inputs.goals, not state.goals
+  state.planStartYear, partnerSavingsForGoals
+);
+```
+
+### Partner panels
+
+Each input sub-tab has a `#partner-panel-{tab}` container below the form. `updatePartnerPanels()` (called from `updateAllUI()`) populates them with read-only partner data in household mode and clears them in individual mode. Panels: `savings`, `assets`, `expenses`, `goals`, `liabilities`.
+
+### Nav toggle
+
+`#view-mode-toggle` (hidden by default, shown when `linkedAccountIds.length > 0`) contains two `.view-mode-btn[data-mode]` buttons. `state.viewMode` is set on click; `scheduleRecalculation()` is called. CSS class `.active` drives the highlighted state.
+
+### Family Sync flow (FamilySyncForm.js)
+
+1. **Generate & Publish** — `saveSyncCode(uid, code, buildProfileSnapshot(state))` writes to `/SyncCodes/{code}` with 24-h TTL.
+2. **Enter partner code → Link** — `loadSyncCode(code)` reads Firestore; validates expiry + not own UID; strips metadata (`uid`, `createdAt`, `expiresAt`); sets `state.partnerData`, `state.linkedAccountIds`, `state.viewMode = 'household'`; calls `savePartnerSnapshot()` for persistence.
+3. **Unlink** — shows `confirmDelete` dialog; clears `state.partnerData`, `linkedAccountIds`; calls `deletePartnerSnapshot()`; reverts to individual.
+4. **Generate code section is shown even when linked** — so the other user can link back (bidirectional).
+5. **Offline / no Firebase** — shows demo button (`DEMO_PARTNER` constant) so household view can be evaluated without Firebase.
+
+Error handling in `doLink()`: `_linkErrorMsg` is a persistent local variable (not a DOM ref). Set before `render()` so the error banner is built into fresh DOM. Cleared on user input without re-render. `friendlyLinkError(err)` maps Firebase/network errors to readable messages.
+
+### CSS classes added
+
+```css
+.view-mode-btn          /* nav toggle buttons */
+.view-mode-btn.active   /* highlighted state */
+.vis-toggle             /* shared/private toggle wrapper */
+.vis-btn                /* each toggle option */
+.vis-btn.active[data-vis="shared"]   /* emerald */
+.vis-btn.active[data-vis="private"]  /* rose */
+.goal-split-my          /* green bar segment */
+.goal-split-partner     /* blue bar segment */
+```
+
 ## Design Tokens
+
 
 ```css
 --color-brand:     oklch(0.75 0.15 75);   /* Amber-400 */

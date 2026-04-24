@@ -243,6 +243,26 @@ export function mountAssetsForm(container, state, onUpdate) {
 
       </div>
 
+      <!-- ── Share Assets Toggle (shown when a partner is linked) ── -->
+      <div id="share-assets-wrap" class="${state.partnerData ? '' : 'hidden'} card bg-surface-3 max-w-2xl mx-auto">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-semibold text-white">Include in Household View</p>
+            <p class="text-xs text-slate-400 mt-0.5">When enabled, your asset balances are combined with your partner's in the Household view</p>
+          </div>
+          <div class="vis-toggle shrink-0" id="share-assets-toggle">
+            <button type="button" class="vis-btn ${state.shareAssets !== false ? 'active' : ''}" data-vis="shared">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              Share
+            </button>
+            <button type="button" class="vis-btn ${state.shareAssets === false ? 'active' : ''}" data-vis="private">
+              <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              Keep Private
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Portfolio Summary ────────────────────────────────── -->
       <div class="card bg-surface-3 max-w-2xl mx-auto">
         <h2 class="card-title mb-3 text-center text-base">Portfolio Summary</h2>
@@ -279,6 +299,17 @@ export function mountAssetsForm(container, state, onUpdate) {
   `;
 
   /* ── delegated input events ─────────────────────────────── */
+  // Share assets visibility toggle
+  container.querySelector('#share-assets-toggle')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.vis-btn[data-vis]');
+    if (!btn) return;
+    const share = btn.dataset.vis === 'shared';
+    container.querySelector('#share-assets-toggle')?.querySelectorAll('.vis-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.vis === btn.dataset.vis),
+    );
+    onUpdate('shareAssets', share);
+  });
+
   container.addEventListener('input', (e) => {
     const { group, key, remark } = e.target.dataset;
 

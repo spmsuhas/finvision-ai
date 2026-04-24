@@ -3,6 +3,7 @@
  * Grouped expense cards with add/remove capability per group.
  */
 import { formatRupee } from '@/utils/formatters.js';
+import { confirmDelete } from '@/utils/confirmDelete.js';
 
 /* ── Expense Groups ─────────────────────────────────────────── */
 const EXPENSE_GROUPS = [
@@ -49,13 +50,19 @@ function parseIndian(str) {
 }
 
 export function mountExpensesForm(container, state, onUpdate) {
+  // Abort any listeners registered by a previous mount of this form on the same container
+  if (container._expAbort) container._expAbort.abort();
+  const _ac = new AbortController();
+  container._expAbort = _ac;
+  const { signal } = _ac;
+
   // Work on a local mutable copy so splice/push don't mutate state directly
   let categories = (state.expenseCategories && state.expenseCategories.length > 0 && state.expenseCategories[0].group)
     ? state.expenseCategories.map(c => ({ ...c }))
     : DEFAULT_CATEGORIES.map(c => ({ ...c }));
 
   const mm = state.monthlyMedicalPremium ?? 0;
-  const mi = state.monthlyEMI            ?? 0;
+  const mi = state.monthlyEMI            ?? 0;   // derived from Liabilities; read-only here
 
   /* ── helpers ─────────────────────────────────────────────── */
   function sumCategories() {
@@ -226,13 +233,18 @@ export function mountExpensesForm(container, state, onUpdate) {
             </div>
 
             <div class="form-group">
-              <label for="inp-emi" class="form-label text-xs">EMI / Loan Payments</label>
-              <div class="form-input-prefix-group">
-                <span class="form-input-prefix text-xs">₹</span>
-                <input id="inp-emi" type="text" inputmode="numeric" class="form-input text-sm py-1.5"
-                  value="${indianFormat(mi)}" placeholder="0" data-rupee-field="monthlyEMI" />
+              <label class="form-label text-xs">Debt Servicing — EMI
+                <span class="ml-1 text-[10px] text-blue-400 font-normal">(auto-synced)</span>
+              </label>
+              <div class="flex items-center gap-2 rounded-lg bg-white/3 border border-white/8 px-3 py-2">
+                <span class="text-xs text-slate-400 flex-1">
+                  Total EMI from
+                  <button type="button" class="text-brand hover:text-brand-light underline underline-offset-2 transition-colors"
+                    data-section="inputs" data-sub="liabilities">Liabilities tab</button>
+                </span>
+                <span id="exp-emi-readonly" class="text-sm font-semibold text-rose-300">${formatRupee(mi)}</span>
               </div>
-              <p class="form-hint">Home, car, personal loan EMIs — fixed</p>
+              <p class="form-hint">Add / edit loans in the Liabilities tab to update this value</p>
             </div>
           </div>
         </div>
@@ -277,18 +289,24 @@ export function mountExpensesForm(container, state, onUpdate) {
     categories[+idx].amount = parseInt(raw, 10) || 0;
     updateSummary();
     notifyUpdate();
-  });
+  }, { signal });
 
   container.addEventListener('click', (e) => {
     // Delete category
     const delBtn = e.target.closest('[data-cat-delete]');
     if (delBtn) {
-      const idx = +delBtn.dataset.catDelete;
-      const grp = categories[idx].group;
-      categories.splice(idx, 1);
-      renderAllGroups();
-      updateSummary();
-      notifyUpdate();
+      const idx   = +delBtn.dataset.catDelete;
+      const label = categories[idx]?.label || 'this item';
+      confirmDelete({
+        title: 'Remove Expense?',
+        message: `"${label}" will be permanently removed from your expenses.`,
+      }).then(confirmed => {
+        if (!confirmed) return;
+        categories.splice(idx, 1);
+        renderAllGroups();
+        updateSummary();
+        notifyUpdate();
+      });
       return;
     }
 
@@ -331,7 +349,7 @@ export function mountExpensesForm(container, state, onUpdate) {
       if (btn) btn.classList.remove('hidden');
       return;
     }
-  });
+  }, { signal });
 
   // Enter key handling for add forms
   container.addEventListener('keydown', (e) => {
@@ -340,12 +358,12 @@ export function mountExpensesForm(container, state, onUpdate) {
     if (labelInp) { e.preventDefault(); labelInp.closest('.exp-add-grp-form').querySelector('.exp-new-amount').focus(); return; }
     const amtInp = e.target.closest('.exp-new-amount');
     if (amtInp) { e.preventDefault(); amtInp.closest('.exp-add-grp-form').querySelector('.exp-add-confirm').click(); }
-  });
+  }, { signal });
 
-  /* ── medical & EMI (rupee fields with Indian formatting) ── */
+  /* ── medical (rupee fields with Indian formatting) ── */
   container.querySelectorAll('[data-rupee-field]').forEach(el => {
     const field = el.dataset.rupeeField;
-    let localVal = field === 'monthlyMedicalPremium' ? mm : mi;
+    let localVal = mm;
 
     el.addEventListener('focus', () => { el.value = localVal || ''; });
     el.addEventListener('blur',  () => { el.value = indianFormat(localVal); });

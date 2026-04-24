@@ -1,126 +1,143 @@
-/* FinVision AI — Main Stylesheet
- * Using Tailwind CSS v4 with @theme custom tokens
- * Design system: Dark navy + Amber/Gold brand + Emerald success
+﻿/* FinVision AI â€” Main Stylesheet
+ * Design language: Jony Ive / Apple HIG â€” precision, restraint, material depth
  */
 
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
-/* ═══════════════════════════════════════════════════════════
-   DESIGN TOKENS via Tailwind v4 @theme
-   ═══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   DESIGN TOKENS
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @theme {
-  /* Brand Colors */
-  --color-brand:        oklch(0.75 0.15 75);   /* Amber-400 equivalent  */
-  --color-brand-light:  oklch(0.85 0.13 75);   /* Amber-300 equivalent  */
-  --color-brand-dark:   oklch(0.60 0.17 75);   /* Amber-600 equivalent  */
+  /* Brand â€” warm gold, ever so slightly desaturated */
+  --color-brand:        oklch(0.53 0.22 264);   /* #2563EB blue-600       */
+  --color-brand-light:  oklch(0.68 0.18 243);   /* #60A5FA blue-400       */
+  --color-brand-dark:   oklch(0.44 0.23 263);   /* #1D4ED8 blue-700       */
 
-  /* Surface Hierarchy (dark backgrounds) */
-  --color-surface-1:    oklch(0.11 0.008 252); /* Slate-950: deepest bg  */
-  --color-surface-2:    oklch(0.17 0.008 252); /* Slate-900: card bg      */
-  --color-surface-3:    oklch(0.22 0.008 252); /* Slate-800: input/chip   */
+  /* Surfaces â€” Apple-precise near-black hierarchy */
+  --color-surface-1:    oklch(0.09 0.002 280);  /* #0a0a0c â€” deepest bg   */
+  --color-surface-2:    oklch(0.13 0.002 280);  /* #111114 â€” card bg      */
+  --color-surface-3:    oklch(0.18 0.003 280);  /* #171719 â€” input fill   */
+  --color-surface-4:    oklch(0.23 0.003 280);  /* #1d1d20 â€” hover fill   */
 
-  /* Semantic Colors */
-  --color-profit:       oklch(0.72 0.17 148);  /* Emerald-400            */
-  --color-loss:         oklch(0.63 0.23 27);   /* Red-400                */
-  --color-warning:      oklch(0.78 0.17 50);   /* Orange-400             */
+  /* Semantic */
+  --color-profit:       oklch(0.73 0.15 151);   /* refined emerald        */
+  --color-loss:         oklch(0.64 0.20 27);    /* refined red            */
+  --color-warning:      oklch(0.78 0.15 52);    /* refined amber          */
 
-  /* Typography */
-  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  /* Typography â€” Apple system stack first */
+  --font-sans: "IBM Plex Sans", -apple-system, "Inter", "Segoe UI", system-ui, sans-serif;
 
-  /* Spacing extensions */
   --spacing-18: 4.5rem;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   BASE OVERRIDES
-   ═══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   BASE
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @layer base {
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
+  *, *::before, *::after { box-sizing: border-box; }
 
   html {
+    font-size: 108%; /* 120% −10% = 108% — all rem values scale automatically */
     scroll-behavior: smooth;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   body {
     background-color: var(--color-surface-1);
-    color: oklch(0.93 0.003 252);
+    color: oklch(0.92 0.004 255);
     font-family: var(--font-sans);
-    line-height: 1.6;
+    line-height: 1.65;
+    letter-spacing: -0.01em;
   }
 
-  /* Custom scrollbar for dark theme */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: var(--color-surface-1); }
-  ::-webkit-scrollbar-thumb { background: oklch(0.35 0.01 252); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(0.45 0.01 252); }
+  /* Scrollbar â€” hairline, Apple-like */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.28 0.008 255);
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(0.38 0.008 255); }
 
-  /* Focus ring */
+  /* Focus ring â€” refined gold glow */
   :focus-visible {
-    outline: 2px solid var(--color-brand);
-    outline-offset: 2px;
-    border-radius: 4px;
+    outline: none;
+    box-shadow: 0 0 0 2.5px color-mix(in oklab, var(--color-brand) 60%, transparent);
+    border-radius: 10px;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.025em;
+    font-weight: 700;
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
-   COMPONENT CLASSES  (@layer components)
-   ═══════════════════════════════════════════════════════════ */
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   COMPONENTS
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @layer components {
 
-  /* ── Buttons ─────────────────────────────────────────────── */
+  /* â”€â”€ Buttons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .btn-primary {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: var(--color-brand);
-    color: oklch(0.10 0 0);
-    font-size: 0.875rem;
+    padding: 0.5rem 1.125rem;
+    background: linear-gradient(
+      160deg,
+      oklch(0.60 0.22 258) 0%,
+      oklch(0.48 0.24 265) 100%
+    );
+    color: white;
+    font-size: 0.8125rem;
     font-weight: 600;
-    border-radius: 0.625rem;
+    letter-spacing: -0.01em;
+    border-radius: 10px;
     border: none;
     cursor: pointer;
-    transition: background-color 150ms, transform 100ms, box-shadow 150ms;
+    transition: opacity 120ms ease, transform 100ms ease, box-shadow 200ms ease;
     user-select: none;
     white-space: nowrap;
+    box-shadow:
+      0 1px 3px oklch(0 0 0 / 0.3),
+      0 0 0 0.5px oklch(1 0 0 / 0.08) inset;
   }
   .btn-primary:hover {
-    background-color: var(--color-brand-light);
-    box-shadow: 0 0 20px color-mix(in oklab, var(--color-brand) 35%, transparent);
+    opacity: 0.92;
+    box-shadow:
+      0 4px 16px color-mix(in oklab, var(--color-brand) 30%, transparent),
+      0 1px 3px oklch(0 0 0 / 0.3),
+      0 0 0 0.5px oklch(1 0 0 / 0.10) inset;
   }
-  .btn-primary:active { transform: scale(0.97); }
-  .btn-primary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    transform: none;
-  }
+  .btn-primary:active { transform: scale(0.97); opacity: 0.85; }
+  .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
 
   .btn-ghost {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: transparent;
-    color: oklch(0.70 0.01 252);
-    font-size: 0.875rem;
+    padding: 0.5rem 1.125rem;
+    background: oklch(1 0 0 / 0.05);
+    color: oklch(0.72 0.008 255);
+    font-size: 0.8125rem;
     font-weight: 500;
-    border-radius: 0.625rem;
-    border: 1px solid oklch(0.30 0.01 252);
+    letter-spacing: -0.01em;
+    border-radius: 10px;
+    border: 0.5px solid oklch(1 0 0 / 0.12);
     cursor: pointer;
-    transition: background-color 150ms, color 150ms, border-color 150ms;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
     user-select: none;
     white-space: nowrap;
   }
   .btn-ghost:hover {
-    background-color: oklch(0.22 0.008 252);
+    background: oklch(1 0 0 / 0.09);
     color: white;
-    border-color: oklch(0.40 0.01 252);
+    border-color: oklch(1 0 0 / 0.18);
   }
 
   .btn-oauth {
@@ -130,18 +147,18 @@
     gap: 0.625rem;
     width: 100%;
     padding: 0.625rem 1rem;
-    background-color: oklch(0.22 0.008 252);
+    background: oklch(1 0 0 / 0.05);
     color: white;
     font-size: 0.875rem;
     font-weight: 500;
-    border-radius: 0.625rem;
-    border: 1px solid oklch(0.30 0.01 252);
+    border-radius: 12px;
+    border: 0.5px solid oklch(1 0 0 / 0.12);
     cursor: pointer;
-    transition: background-color 150ms, border-color 150ms;
+    transition: background 150ms ease, border-color 150ms ease;
   }
   .btn-oauth:hover {
-    background-color: oklch(0.27 0.008 252);
-    border-color: oklch(0.40 0.01 252);
+    background: oklch(1 0 0 / 0.09);
+    border-color: oklch(1 0 0 / 0.20);
   }
 
   .icon-btn {
@@ -150,19 +167,19 @@
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    border-radius: 0.5rem;
+    border-radius: 8px;
     border: none;
     background: transparent;
-    color: oklch(0.60 0.01 252);
+    color: oklch(0.55 0.008 255);
     cursor: pointer;
-    transition: background-color 150ms, color 150ms;
+    transition: background 150ms ease, color 150ms ease;
   }
   .icon-btn:hover {
-    background-color: oklch(0.22 0.008 252);
-    color: white;
+    background: oklch(1 0 0 / 0.07);
+    color: oklch(0.92 0.004 255);
   }
 
-  /* ── Navigation ──────────────────────────────────────────── */
+  /* â”€â”€ Navigation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .nav-tab {
     display: inline-flex;
     align-items: center;
@@ -170,141 +187,183 @@
     padding: 0.375rem 0.75rem;
     background: transparent;
     border: none;
-    border-radius: 0.5rem;
-    color: oklch(0.60 0.01 252);
+    border-radius: 8px;
+    color: oklch(0.58 0.008 255);
     font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 150ms, color 150ms;
+    transition: background 150ms ease, color 150ms ease;
     white-space: nowrap;
+    letter-spacing: -0.01em;
   }
-  .nav-tab:hover { background-color: oklch(0.22 0.008 252); color: white; }
-  .nav-tab.active { background-color: oklch(0.22 0.008 252); color: white; }
+  .nav-tab:hover {
+    background: oklch(1 0 0 / 0.06);
+    color: oklch(0.92 0.004 255);
+  }
+  .nav-tab.active {
+    background: oklch(1 0 0 / 0.08);
+    color: white;
+  }
 
   .sidebar-link {
     display: flex;
     align-items: center;
     gap: 0.625rem;
     width: 100%;
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.625rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: 10px;
     border: none;
     background: transparent;
-    color: oklch(0.60 0.01 252);
+    color: oklch(0.58 0.008 255);
     font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
     text-align: left;
-    transition: background-color 150ms, color 150ms;
+    transition: background 150ms ease, color 150ms ease;
     position: relative;
+    letter-spacing: -0.01em;
   }
-  .sidebar-link:hover { background-color: oklch(0.22 0.008 252); color: oklch(0.90 0.01 252); }
-  .sidebar-link.active { background-color: color-mix(in oklab, var(--color-brand) 15%, transparent); color: white; }
+  .sidebar-link:hover {
+    background: oklch(1 0 0 / 0.06);
+    color: oklch(0.88 0.005 255);
+  }
+  .sidebar-link.active {
+    background: color-mix(in oklab, var(--color-brand) 14%, oklch(1 0 0 / 0.04));
+    color: white;
+    box-shadow: 0 0 0 0.5px color-mix(in oklab, var(--color-brand) 25%, transparent) inset;
+  }
   .sidebar-link.active svg { color: var(--color-brand); }
 
   .sidebar-badge {
     margin-left: auto;
     flex-shrink: 0;
-    padding: 0.125rem 0.375rem;
-    border-radius: 9999px;
+    padding: 0.1rem 0.375rem;
+    border-radius: 99px;
     font-size: 0.6875rem;
     font-weight: 600;
-    line-height: 1.4;
-    background-color: oklch(0.30 0.01 252);
-    color: oklch(0.70 0.01 252);
+    line-height: 1.5;
+    background: oklch(1 0 0 / 0.07);
+    color: oklch(0.62 0.008 255);
+    border: 0.5px solid oklch(1 0 0 / 0.10);
   }
 
-  /* ── Cards ───────────────────────────────────────────────── */
+  /* â”€â”€ Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .card {
-    background-color: var(--color-surface-2);
-    border: 1px solid oklch(0.25 0.008 252);
-    border-radius: 1rem;
-    padding: 1.25rem;
+    background: oklch(0.13 0.006 255 / 0.85);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 0.5px solid oklch(1 0 0 / 0.09);
+    border-radius: 18px;
+    padding: 1.375rem;
+    box-shadow:
+      0 1px 0 0.5px oklch(1 0 0 / 0.05) inset,
+      0 8px 32px oklch(0 0 0 / 0.28),
+      0 2px 8px oklch(0 0 0 / 0.18);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .card:hover {
+    border-color: oklch(1 0 0 / 0.14);
+    box-shadow:
+      0 1px 0 0.5px oklch(1 0 0 / 0.07) inset,
+      0 12px 40px oklch(0 0 0 / 0.32),
+      0 2px 8px oklch(0 0 0 / 0.20);
   }
 
   .card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.875rem;
   }
 
   .card-title {
     font-size: 0.9375rem;
     font-weight: 600;
     color: white;
+    letter-spacing: -0.02em;
   }
 
-  /* ── KPI Cards ───────────────────────────────────────────── */
+  /* â”€â”€ KPI Cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .kpi-card {
-    background-color: var(--color-surface-2);
-    border: 1px solid oklch(0.25 0.008 252);
-    border-radius: 1rem;
-    padding: 1rem;
+    background: oklch(0.13 0.006 255 / 0.85);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 0.5px solid oklch(1 0 0 / 0.09);
+    border-radius: 18px;
+    padding: 1.125rem;
     display: flex;
     align-items: flex-start;
-    gap: 0.875rem;
-    transition: border-color 200ms;
+    gap: 1rem;
+    transition: border-color 200ms ease, box-shadow 200ms ease;
+    box-shadow: 0 4px 16px oklch(0 0 0 / 0.22), 0 1px 0 0.5px oklch(1 0 0 / 0.05) inset;
   }
-  .kpi-card:hover { border-color: oklch(0.35 0.01 252); }
+  .kpi-card:hover {
+    border-color: oklch(1 0 0 / 0.15);
+    box-shadow: 0 8px 28px oklch(0 0 0 / 0.28), 0 1px 0 0.5px oklch(1 0 0 / 0.07) inset;
+  }
 
   .kpi-icon {
     flex-shrink: 0;
     width: 2.5rem;
     height: 2.5rem;
-    border-radius: 0.75rem;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
+    border: 0.5px solid oklch(1 0 0 / 0.10);
   }
 
   .kpi-label {
     font-size: 0.6875rem;
     font-weight: 500;
-    color: oklch(0.55 0.01 252);
+    color: oklch(0.52 0.007 255);
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
     margin-bottom: 0.25rem;
   }
 
   .kpi-value {
-    font-size: 1.375rem;
+    font-size: 1.4rem;
     font-weight: 700;
     color: white;
-    line-height: 1.2;
+    line-height: 1.15;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
   }
 
   .kpi-change {
     font-size: 0.75rem;
     margin-top: 0.125rem;
+    letter-spacing: -0.01em;
   }
 
-  /* ── Stat Chips ──────────────────────────────────────────── */
+  /* â”€â”€ Stat Chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .stat-chip {
-    background-color: var(--color-surface-2);
-    border: 1px solid oklch(0.25 0.008 252);
-    border-radius: 0.75rem;
-    padding: 0.875rem;
+    background: oklch(1 0 0 / 0.04);
+    border: 0.5px solid oklch(1 0 0 / 0.09);
+    border-radius: 14px;
+    padding: 0.875rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.3rem;
+    box-shadow: 0 1px 0 0.5px oklch(1 0 0 / 0.04) inset;
   }
   .stat-chip-label {
     font-size: 0.6875rem;
-    color: oklch(0.55 0.01 252);
+    color: oklch(0.52 0.007 255);
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.06em;
   }
   .stat-chip-value {
     font-size: 1.125rem;
     font-weight: 700;
     color: white;
     font-variant-numeric: tabular-nums;
+    letter-spacing: -0.025em;
   }
 
-  /* ── Charts ──────────────────────────────────────────────── */
+  /* â”€â”€ Charts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .chart-container {
     position: relative;
     width: 100%;
@@ -312,115 +371,172 @@
 
   .chart-tooltip {
     position: absolute;
-    background: var(--color-surface-2);
-    border: 1px solid oklch(0.32 0.01 252);
-    border-radius: 0.75rem;
+    background: oklch(0.13 0.006 255 / 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 0.5px solid oklch(1 0 0 / 0.14);
+    border-radius: 14px;
     padding: 0.75rem 1rem;
     font-size: 0.8125rem;
     pointer-events: none;
     z-index: 10;
     min-width: 180px;
-    box-shadow: 0 8px 24px oklch(0 0 0 / 0.4);
+    box-shadow: 0 12px 32px oklch(0 0 0 / 0.45);
   }
 
   .chart-toggle-btn {
     padding: 0.375rem 0.625rem;
-    border-radius: 0.375rem;
+    border-radius: 8px;
     border: none;
     background: transparent;
-    color: oklch(0.55 0.01 252);
+    color: oklch(0.52 0.007 255);
     cursor: pointer;
-    transition: background-color 150ms, color 150ms;
+    font-size: 0.75rem;
+    font-weight: 500;
+    transition: background 150ms ease, color 150ms ease;
   }
   .chart-toggle-btn.active {
-    background-color: oklch(0.27 0.008 252);
+    background: oklch(1 0 0 / 0.08);
     color: white;
   }
 
-  /* ── Forms ───────────────────────────────────────────────── */
-  .form-group { display: flex; flex-direction: column; gap: 0.375rem; }
+  /* ── Household context toggle ────────────────────────────── */
+  .context-btn {
+    border: none;
+    background: transparent;
+    color: oklch(0.52 0.007 255);
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .context-btn.active {
+    background: oklch(0.53 0.22 264 / 0.15);
+    color: oklch(0.75 0.18 264);
+  }
+  .context-btn:hover:not(.active) {
+    background: oklch(1 0 0 / 0.05);
+    color: oklch(0.80 0.007 255);
+  }
+
+  /* ── View Mode Toggle (nav bar) ─────────────────────────── */
+  .view-mode-btn {
+    border: none;
+    background: transparent;
+    color: oklch(0.52 0.007 255);
+    cursor: pointer;
+    transition: background 150ms ease, color 150ms ease;
+  }
+  .view-mode-btn.active {
+    background: oklch(0.53 0.22 264 / 0.15);
+    color: oklch(0.75 0.18 264);
+  }
+  .view-mode-btn:hover:not(.active) {
+    background: oklch(1 0 0 / 0.05);
+    color: oklch(0.80 0.007 255);
+  }
+
+  /* ── Visibility Toggle (forms) ──────────────────────────── */
+  .vis-toggle {
+    display: flex;
+    gap: 0.25rem;
+    background: oklch(0.18 0.003 280);
+    padding: 0.25rem;
+    border-radius: 8px;
+  }
+  .vis-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: oklch(0.52 0.007 255);
+    background: transparent;
+    transition: all 150ms ease;
+  }
+  .vis-btn:hover:not(.active) {
+    background: oklch(1 0 0 / 0.05);
+    color: oklch(0.80 0.007 255);
+  }
+  .vis-btn.active[data-vis="shared"]  { background: oklch(0.72 0.17 148 / 0.15); color: oklch(0.72 0.17 148); }
+  .vis-btn.active[data-vis="private"] { background: oklch(0.63 0.23 27 / 0.15);  color: oklch(0.75 0.15 27);  }
+
+  /* ── Goal split bar ─────────────────────────────────────── */
+  .goal-split-my      { background: rgba(52, 211, 153, 0.75); }
+  .goal-split-partner { background: rgba(99, 179, 237, 0.75); }
+
+  /* â”€â”€ Forms â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
 
   .form-label {
     font-size: 0.8125rem;
     font-weight: 500;
-    color: oklch(0.70 0.01 252);
+    color: oklch(0.68 0.007 255);
+    letter-spacing: -0.01em;
   }
 
   .form-input {
     width: 100%;
-    background-color: var(--color-surface-3);
-    border: 1px solid oklch(0.30 0.01 252);
-    border-radius: 0.625rem;
-    padding: 0.5625rem 0.75rem;
+    background: oklch(1 0 0 / 0.05);
+    border: 0.5px solid oklch(1 0 0 / 0.12);
+    border-radius: 12px;
+    padding: 0.5625rem 0.875rem;
     color: white;
     font-size: 0.875rem;
+    font-family: var(--font-sans);
+    letter-spacing: -0.01em;
     line-height: 1.5;
-    transition: border-color 150ms, box-shadow 150ms;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
     outline: none;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.18);
+  }
+  .form-input:hover {
+    border-color: oklch(1 0 0 / 0.18);
+    background: oklch(1 0 0 / 0.065);
   }
   .form-input:focus {
-    border-color: var(--color-brand);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-brand) 20%, transparent);
+    border-color: color-mix(in oklab, var(--color-brand) 55%, transparent);
+    background: oklch(1 0 0 / 0.07);
+    box-shadow:
+      0 0 0 3px color-mix(in oklab, var(--color-brand) 15%, transparent),
+      0 1px 3px oklch(0 0 0 / 0.20);
   }
-  .form-input::placeholder { color: oklch(0.40 0.01 252); }
+  .form-input::placeholder { color: oklch(0.38 0.006 255); }
 
-  /* Date input — dark theme aligned with design tokens */
+  /* Date input */
   input[type="date"].form-input {
     color-scheme: dark;
     -webkit-appearance: none;
     appearance: none;
-    letter-spacing: 0.025em;
+    letter-spacing: 0.01em;
     color: white;
   }
-  /* Date text parts — ensure full visibility after selection */
-  input[type="date"].form-input::-webkit-datetime-edit {
-    color: white;
-    opacity: 1;
-  }
-  input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper {
-    color: white;
-  }
+  input[type="date"].form-input::-webkit-datetime-edit { color: white; opacity: 1; }
+  input[type="date"].form-input::-webkit-datetime-edit-fields-wrapper { color: white; }
   input[type="date"].form-input::-webkit-datetime-edit-day-field,
   input[type="date"].form-input::-webkit-datetime-edit-month-field,
-  input[type="date"].form-input::-webkit-datetime-edit-year-field {
-    color: white;
-    opacity: 1;
-  }
-  input[type="date"].form-input::-webkit-datetime-edit-text {
-    color: oklch(0.50 0.01 252);
-  }
-  /* Empty date field shows muted placeholder-style text */
+  input[type="date"].form-input::-webkit-datetime-edit-year-field { color: white; opacity: 1; }
+  input[type="date"].form-input::-webkit-datetime-edit-text { color: oklch(0.45 0.006 255); }
   input[type="date"].form-input:not(:valid),
-  input[type="date"].form-input[value=""] {
-    color: oklch(0.40 0.01 252);
-  }
-  input[type="date"].form-input:not(:valid)::-webkit-datetime-edit,
-  input[type="date"].form-input[value=""]::-webkit-datetime-edit {
-    color: oklch(0.40 0.01 252);
-    opacity: 0.6;
-  }
-  /* Calendar picker icon — slate-400 tint, brand-gold on hover */
+  input[type="date"].form-input[value=""] { color: oklch(0.38 0.006 255); }
   input[type="date"].form-input::-webkit-calendar-picker-indicator {
     filter: invert(0.75) sepia(0.05) saturate(0.3) hue-rotate(190deg);
     cursor: pointer;
-    opacity: 0.55;
+    opacity: 0.5;
     transition: opacity 0.15s, filter 0.15s;
   }
   input[type="date"].form-input::-webkit-calendar-picker-indicator:hover {
-    /* Amber/gold tint matching --color-brand */
     filter: invert(0.78) sepia(0.55) saturate(2) hue-rotate(10deg);
     opacity: 1;
   }
-  input[type="date"].form-input:focus::-webkit-calendar-picker-indicator {
-    opacity: 0.85;
-  }
 
-  /* Hide number input spinners globally */
+  /* Spinners */
   input[type="number"]::-webkit-inner-spin-button,
-  input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
   input[type="number"] { -moz-appearance: textfield; }
 
   .form-input-prefix-group {
@@ -430,36 +546,36 @@
   .form-input-prefix {
     display: flex;
     align-items: center;
-    padding: 0 0.625rem;
-    background-color: oklch(0.27 0.008 252);
-    border: 1px solid oklch(0.30 0.01 252);
+    padding: 0 0.75rem;
+    background: oklch(1 0 0 / 0.04);
+    border: 0.5px solid oklch(1 0 0 / 0.12);
     border-right: none;
-    border-radius: 0.625rem 0 0 0.625rem;
-    color: oklch(0.60 0.01 252);
+    border-radius: 12px 0 0 12px;
+    color: oklch(0.52 0.007 255);
     font-size: 0.875rem;
     font-weight: 500;
     flex-shrink: 0;
   }
-  .form-input-prefix + .form-input { border-radius: 0 0.625rem 0.625rem 0; }
+  .form-input-prefix + .form-input { border-radius: 0 12px 12px 0; }
 
-  /* Select dropdown — dark theme */
+  /* Select */
   select.form-input {
     color-scheme: dark;
     -webkit-appearance: none;
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23787882' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
-    background-position: right 0.5rem center;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%235a5a65' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 0.625rem center;
     background-repeat: no-repeat;
-    background-size: 1.25rem 1.25rem;
-    padding-right: 2rem;
+    background-size: 1.125rem 1.125rem;
+    padding-right: 2.25rem;
     cursor: pointer;
   }
   select.form-input option {
-    background-color: oklch(0.17 0.008 252);
+    background-color: oklch(0.13 0.006 255);
     color: white;
   }
 
-  /* Asset info icon — fixed width column at row end */
+  /* Asset info tooltip */
   .asset-info-wrap {
     position: relative;
     display: flex;
@@ -473,29 +589,29 @@
   .asset-info-icon {
     width: 0.875rem;
     height: 0.875rem;
-    color: oklch(0.45 0.01 252);
+    color: oklch(0.40 0.006 255);
     transition: color 0.15s;
   }
   .asset-info-wrap:hover .asset-info-icon,
   .asset-info-wrap:focus-within .asset-info-icon {
-    color: oklch(0.70 0.14 250);
+    color: oklch(0.65 0.12 250);
   }
-
-  /* Tooltip bubble — CSS-only overlay on hover */
   .asset-info-bubble {
     position: absolute;
-    left: calc(100% + 8px);
+    left: calc(100% + 10px);
     top: 50%;
-    transform: translateY(-50%) translateX(-4px);
-    width: 240px;
-    padding: 0.45rem 0.6rem;
-    background: oklch(0.18 0.01 252);
-    color: oklch(0.72 0.01 252);
-    font-size: 0.68rem;
-    line-height: 1.5;
-    border-radius: 0.4rem;
-    border: 1px solid oklch(0.28 0.01 252);
-    box-shadow: 0 4px 16px oklch(0 0 0 / 0.5);
+    transform: translateY(-50%) translateX(-6px);
+    width: 248px;
+    padding: 0.5rem 0.75rem;
+    background: oklch(0.14 0.007 255 / 0.96);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    color: oklch(0.70 0.006 255);
+    font-size: 0.6875rem;
+    line-height: 1.55;
+    border-radius: 10px;
+    border: 0.5px solid oklch(1 0 0 / 0.12);
+    box-shadow: 0 8px 24px oklch(0 0 0 / 0.50);
     z-index: 60;
     pointer-events: none;
     opacity: 0;
@@ -509,37 +625,42 @@
 
   .form-hint {
     font-size: 0.75rem;
-    color: oklch(0.45 0.01 252);
+    color: oklch(0.42 0.006 255);
     margin-top: 0.125rem;
+    letter-spacing: -0.005em;
   }
 
   .form-range {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
-    height: 4px;
-    border-radius: 9999px;
-    background: oklch(0.27 0.008 252);
+    height: 3px;
+    border-radius: 99px;
+    background: oklch(1 0 0 / 0.10);
     outline: none;
     cursor: pointer;
+    transition: background 150ms;
   }
+  .form-range:hover { background: oklch(1 0 0 / 0.14); }
   .form-range::-webkit-slider-thumb {
     -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     border-radius: 50%;
-    background: var(--color-brand);
+    background: white;
     cursor: pointer;
-    box-shadow: 0 0 6px color-mix(in oklab, var(--color-brand) 50%, transparent);
+    box-shadow: 0 1px 4px oklch(0 0 0 / 0.40), 0 0 8px color-mix(in oklab, var(--color-brand) 40%, transparent);
+    transition: transform 120ms ease;
   }
+  .form-range::-webkit-slider-thumb:hover { transform: scale(1.15); }
   .form-range::-moz-range-thumb {
-    width: 16px;
-    height: 16px;
+    width: 17px;
+    height: 17px;
     border-radius: 50%;
-    background: var(--color-brand);
+    background: white;
     cursor: pointer;
     border: none;
+    box-shadow: 0 1px 4px oklch(0 0 0 / 0.40);
   }
 
   .checkbox-label {
@@ -547,9 +668,10 @@
     align-items: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: oklch(0.75 0.01 252);
+    color: oklch(0.72 0.007 255);
     cursor: pointer;
     user-select: none;
+    transition: color 120ms ease;
   }
   .checkbox-label:hover { color: white; }
 
@@ -561,34 +683,37 @@
     flex-shrink: 0;
   }
 
-  /* ── Input Tabs ──────────────────────────────────────────── */
+  /* â”€â”€ Input Tabs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .input-tab {
     display: inline-flex;
     align-items: center;
     gap: 0.375rem;
     padding: 0.4375rem 0.875rem;
-    border-radius: 0.5rem;
+    border-radius: 9px;
     border: none;
     background: transparent;
-    color: oklch(0.60 0.01 252);
+    color: oklch(0.54 0.007 255);
     font-size: 0.8125rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 150ms, color 150ms;
+    transition: background 150ms ease, color 150ms ease;
     white-space: nowrap;
+    letter-spacing: -0.01em;
   }
-  .input-tab:hover { color: white; }
+  .input-tab:hover { color: oklch(0.88 0.005 255); }
   .input-tab.active {
-    background-color: oklch(0.27 0.008 252);
+    background: oklch(1 0 0 / 0.10);
     color: white;
+    box-shadow: 0 1px 0 0.5px oklch(1 0 0 / 0.08) inset, 0 1px 3px oklch(0 0 0 / 0.25);
   }
 
-  /* ── Auth Modal ──────────────────────────────────────────── */
+  /* â”€â”€ Modals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: oklch(0 0 0 / 0.65);
-    backdrop-filter: blur(6px);
+    background: oklch(0 0 0 / 0.60);
+    backdrop-filter: blur(12px) saturate(1.2);
+    -webkit-backdrop-filter: blur(12px) saturate(1.2);
     z-index: 50;
     display: flex;
     align-items: center;
@@ -597,11 +722,16 @@
   }
 
   .modal-card {
-    background-color: var(--color-surface-2);
-    border: 1px solid oklch(0.28 0.008 252);
-    border-radius: 1.25rem;
-    padding: 1.75rem;
-    box-shadow: 0 24px 64px oklch(0 0 0 / 0.5);
+    background: oklch(0.13 0.006 255 / 0.96);
+    backdrop-filter: blur(24px) saturate(1.5);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    border: 0.5px solid oklch(1 0 0 / 0.12);
+    border-radius: 22px;
+    padding: 1.875rem;
+    box-shadow:
+      0 1px 0 0.5px oklch(1 0 0 / 0.07) inset,
+      0 32px 80px oklch(0 0 0 / 0.55),
+      0 8px 24px oklch(0 0 0 / 0.30);
     max-height: 90vh;
     overflow-y: auto;
   }
@@ -609,17 +739,18 @@
   .auth-tab {
     flex: 1;
     padding: 0.5rem;
-    border-radius: 0.5rem;
+    border-radius: 8px;
     border: none;
     background: transparent;
     font-size: 0.875rem;
     font-weight: 500;
-    color: oklch(0.55 0.01 252);
+    color: oklch(0.52 0.007 255);
     cursor: pointer;
-    transition: background-color 150ms, color 150ms;
+    transition: background 150ms ease, color 150ms ease;
+    letter-spacing: -0.01em;
   }
   .auth-tab.active {
-    background-color: oklch(0.27 0.008 252);
+    background: oklch(1 0 0 / 0.09);
     color: white;
   }
 
@@ -629,20 +760,19 @@
     text-align: center;
     position: relative;
     font-size: 0.75rem;
-    color: oklch(0.45 0.01 252);
+    color: oklch(0.40 0.006 255);
     margin: 0.75rem 0;
   }
-  .divider-text::before,
-  .divider-text::after {
+  .divider-text::before, .divider-text::after {
     content: '';
     position: absolute;
     top: 50%;
     width: calc(50% - 1.5rem);
-    height: 1px;
-    background: oklch(0.28 0.008 252);
+    height: 0.5px;
+    background: oklch(1 0 0 / 0.10);
   }
   .divider-text::before { left: 0; }
-  .divider-text::after { right: 0; }
+  .divider-text::after  { right: 0; }
 
   .password-toggle {
     position: absolute;
@@ -651,135 +781,148 @@
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: oklch(0.50 0.01 252);
+    color: oklch(0.46 0.006 255);
     cursor: pointer;
     padding: 0.25rem;
-    transition: color 150ms;
+    transition: color 150ms ease;
   }
-  .password-toggle:hover { color: oklch(0.75 0.01 252); }
+  .password-toggle:hover { color: oklch(0.72 0.007 255); }
 
   .error-message {
     font-size: 0.8125rem;
     color: var(--color-loss);
-    padding: 0.5rem 0.75rem;
-    background: color-mix(in oklab, var(--color-loss) 12%, transparent);
-    border-radius: 0.5rem;
-    border: 1px solid color-mix(in oklab, var(--color-loss) 25%, transparent);
+    padding: 0.5rem 0.875rem;
+    background: color-mix(in oklab, var(--color-loss) 10%, transparent);
+    border-radius: 10px;
+    border: 0.5px solid color-mix(in oklab, var(--color-loss) 22%, transparent);
   }
 
-  /* ── Section Panels ──────────────────────────────────────── */
+  /* â”€â”€ Section Panels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .section-panel { min-height: calc(100vh - 4rem); }
 
-  /* ── Data Table ──────────────────────────────────────────── */
+  /* â”€â”€ Data Table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .data-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
   .data-table th {
     text-align: left;
-    padding: 0.625rem 0.75rem;
+    padding: 0.625rem 0.875rem;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: oklch(0.50 0.01 252);
-    border-bottom: 1px solid oklch(0.25 0.008 252);
+    letter-spacing: 0.06em;
+    color: oklch(0.48 0.007 255);
+    border-bottom: 0.5px solid oklch(1 0 0 / 0.10);
     white-space: nowrap;
   }
   .data-table td {
-    padding: 0.625rem 0.75rem;
-    border-bottom: 1px solid oklch(0.20 0.008 252);
-    color: oklch(0.80 0.01 252);
+    padding: 0.625rem 0.875rem;
+    border-bottom: 0.5px solid oklch(1 0 0 / 0.06);
+    color: oklch(0.78 0.007 255);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
-  .data-table tr:hover td { background-color: oklch(0.20 0.008 252); }
+  .data-table tr:hover td { background: oklch(1 0 0 / 0.03); }
   .data-table tr:last-child td { border-bottom: none; }
   .data-table .col-positive { color: var(--color-profit); }
   .data-table .col-negative { color: var(--color-loss); }
   .data-table .col-highlight { color: var(--color-brand); font-weight: 600; }
-  .data-table .row-milestone td { background-color: color-mix(in oklab, var(--color-brand) 8%, transparent); }
+  .data-table .row-milestone td { background: color-mix(in oklab, var(--color-brand) 6%, transparent); }
 
-  /* ── Pagination ──────────────────────────────────────────── */
+  /* â”€â”€ Pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .pagination-btn {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid oklch(0.28 0.008 252);
-    border-radius: 0.375rem;
+    padding: 0.3rem 0.6rem;
+    border: 0.5px solid oklch(1 0 0 / 0.12);
+    border-radius: 8px;
     background: transparent;
-    color: oklch(0.60 0.01 252);
+    color: oklch(0.58 0.007 255);
     cursor: pointer;
-    transition: background-color 150ms, color 150ms;
+    font-size: 0.75rem;
+    transition: background 150ms ease, color 150ms ease;
   }
   .pagination-btn:hover:not(:disabled) {
-    background-color: oklch(0.22 0.008 252);
+    background: oklch(1 0 0 / 0.07);
     color: white;
   }
-  .pagination-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .pagination-btn:disabled { opacity: 0.30; cursor: not-allowed; }
 
-  /* ── Health Bar ──────────────────────────────────────────── */
+  /* â”€â”€ Health Bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .health-bar-track {
-    height: 6px;
-    border-radius: 9999px;
-    background: oklch(0.27 0.008 252);
+    height: 5px;
+    border-radius: 99px;
+    background: oklch(1 0 0 / 0.08);
     overflow: hidden;
   }
   .health-bar-fill {
     height: 100%;
-    border-radius: 9999px;
-    background: linear-gradient(90deg, var(--color-loss) 0%, var(--color-warning) 50%, var(--color-profit) 100%);
-    transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 99px;
+    background: linear-gradient(90deg,
+      var(--color-loss) 0%,
+      var(--color-warning) 52%,
+      var(--color-profit) 100%
+    );
+    transition: width 700ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ── Goal Preview Chips ──────────────────────────────────── */
+  /* â”€â”€ Goal Preview Chips â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .goal-preview-item {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.625rem;
-    background: var(--color-surface-3);
-    border-radius: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    background: oklch(1 0 0 / 0.04);
+    border: 0.5px solid oklch(1 0 0 / 0.08);
+    border-radius: 12px;
+    transition: border-color 150ms ease;
   }
+  .goal-preview-item:hover { border-color: oklch(1 0 0 / 0.14); }
   .goal-progress-bar {
     flex: 1;
-    height: 4px;
-    background: oklch(0.30 0.01 252);
-    border-radius: 9999px;
+    height: 3px;
+    background: oklch(1 0 0 / 0.10);
+    border-radius: 99px;
     overflow: hidden;
   }
   .goal-progress-fill {
     height: 100%;
-    border-radius: 9999px;
-    transition: width 400ms ease;
+    border-radius: 99px;
+    transition: width 500ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* ── Toast Notifications ─────────────────────────────────── */
+  /* â”€â”€ Toasts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .toast {
     display: flex;
     align-items: flex-start;
     gap: 0.625rem;
     padding: 0.75rem 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid;
+    border-radius: 14px;
+    border: 0.5px solid;
     max-width: 20rem;
-    box-shadow: 0 8px 24px oklch(0 0 0 / 0.4);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow:
+      0 1px 0 0.5px oklch(1 0 0 / 0.06) inset,
+      0 12px 32px oklch(0 0 0 / 0.45);
     pointer-events: auto;
-    animation: toastIn 200ms ease-out;
+    animation: toastIn 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
     font-size: 0.875rem;
+    letter-spacing: -0.01em;
   }
   .toast-success {
-    background: color-mix(in oklab, var(--color-profit) 12%, var(--color-surface-2));
-    border-color: color-mix(in oklab, var(--color-profit) 30%, transparent);
+    background: color-mix(in oklab, var(--color-profit) 10%, oklch(0.13 0.006 255 / 0.95));
+    border-color: color-mix(in oklab, var(--color-profit) 28%, transparent);
     color: var(--color-profit);
   }
   .toast-error {
-    background: color-mix(in oklab, var(--color-loss) 12%, var(--color-surface-2));
-    border-color: color-mix(in oklab, var(--color-loss) 30%, transparent);
+    background: color-mix(in oklab, var(--color-loss) 10%, oklch(0.13 0.006 255 / 0.95));
+    border-color: color-mix(in oklab, var(--color-loss) 28%, transparent);
     color: var(--color-loss);
   }
   .toast-info {
-    background: color-mix(in oklab, var(--color-brand) 10%, var(--color-surface-2));
-    border-color: color-mix(in oklab, var(--color-brand) 25%, transparent);
+    background: color-mix(in oklab, var(--color-brand) 9%, oklch(0.13 0.006 255 / 0.95));
+    border-color: color-mix(in oklab, var(--color-brand) 24%, transparent);
     color: var(--color-brand-light);
   }
 
-  /* ── AI Chat ─────────────────────────────────────────────── */
+  /* â”€â”€ AI Chat â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
   .chat-message-ai {
     display: flex;
     align-items: flex-start;
@@ -787,24 +930,27 @@
   }
   .chat-avatar-ai {
     flex-shrink: 0;
-    width: 1.75rem;
-    height: 1.75rem;
+    width: 1.875rem;
+    height: 1.875rem;
     border-radius: 50%;
-    background: color-mix(in oklab, var(--color-brand) 15%, var(--color-surface-3));
+    background: color-mix(in oklab, var(--color-brand) 12%, oklch(1 0 0 / 0.05));
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px solid color-mix(in oklab, var(--color-brand) 25%, transparent);
+    border: 0.5px solid color-mix(in oklab, var(--color-brand) 22%, transparent);
+    box-shadow: 0 0 12px color-mix(in oklab, var(--color-brand) 12%, transparent);
   }
   .chat-bubble-ai {
     max-width: 80%;
-    background: var(--color-surface-3);
-    border-radius: 0 0.875rem 0.875rem 0.875rem;
+    background: oklch(1 0 0 / 0.05);
+    border-radius: 4px 16px 16px 16px;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
-    color: oklch(0.82 0.01 252);
-    line-height: 1.6;
-    border: 1px solid oklch(0.28 0.008 252);
+    color: oklch(0.82 0.007 255);
+    line-height: 1.65;
+    border: 0.5px solid oklch(1 0 0 / 0.10);
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.18);
+    letter-spacing: -0.005em;
   }
   .chat-message-user {
     display: flex;
@@ -812,12 +958,14 @@
   }
   .chat-bubble-user {
     max-width: 80%;
-    background: color-mix(in oklab, var(--color-brand) 20%, var(--color-surface-3));
-    border-radius: 0.875rem 0 0.875rem 0.875rem;
+    background: color-mix(in oklab, var(--color-brand) 18%, oklch(1 0 0 / 0.07));
+    border-radius: 16px 4px 16px 16px;
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
     color: white;
-    border: 1px solid color-mix(in oklab, var(--color-brand) 30%, transparent);
+    border: 0.5px solid color-mix(in oklab, var(--color-brand) 28%, transparent);
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.18);
+    letter-spacing: -0.005em;
   }
   .chat-typing-indicator {
     display: flex;
@@ -826,69 +974,493 @@
     align-items: center;
   }
   .chat-typing-dot {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
     border-radius: 50%;
-    background: oklch(0.55 0.01 252);
+    background: oklch(0.50 0.007 255);
     animation: typingBounce 1.2s infinite;
   }
   .chat-typing-dot:nth-child(2) { animation-delay: 0.2s; }
   .chat-typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
   .suggested-prompt-btn {
-    padding: 0.375rem 0.75rem;
-    background: var(--color-surface-3);
-    border: 1px solid oklch(0.30 0.01 252);
-    border-radius: 9999px;
-    color: oklch(0.65 0.01 252);
+    padding: 0.375rem 0.875rem;
+    background: oklch(1 0 0 / 0.05);
+    border: 0.5px solid oklch(1 0 0 / 0.12);
+    border-radius: 99px;
+    color: oklch(0.62 0.007 255);
     font-size: 0.75rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: background-color 150ms, color 150ms, border-color 150ms;
+    transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
     white-space: nowrap;
+    letter-spacing: -0.01em;
   }
   .suggested-prompt-btn:hover {
-    background-color: oklch(0.27 0.008 252);
+    background: oklch(1 0 0 / 0.09);
     color: white;
-    border-color: oklch(0.40 0.01 252);
+    border-color: oklch(1 0 0 / 0.20);
   }
 }
 
-/* ═══════════════════════════════════════════════════════════
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    ANIMATIONS
-   ═══════════════════════════════════════════════════════════ */
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(20px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateX(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
 }
 
 @keyframes typingBounce {
   0%, 60%, 100% { transform: translateY(0); }
-  30%           { transform: translateY(-4px); }
+  30%           { transform: translateY(-5px); }
 }
 
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 /* Skeleton loader */
 .skeleton {
   background: linear-gradient(90deg,
-    oklch(0.20 0.008 252) 25%,
-    oklch(0.25 0.008 252) 50%,
-    oklch(0.20 0.008 252) 75%
+    oklch(0.18 0.003 280) 25%,
+    oklch(0.23 0.003 280) 50%,
+    oklch(0.18 0.003 280) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 0.25rem;
+  animation: shimmer 1.6s infinite;
+  border-radius: 6px;
 }
 
 /* Section entrance */
 .section-panel:not(.hidden) {
-  animation: fadeInUp 200ms ease-out;
+  animation: fadeInUp 240ms cubic-bezier(0.34, 1.20, 0.64, 1);
+}
+
+/* Modal entrance */
+.modal-card {
+  animation: scaleIn 200ms cubic-bezier(0.34, 1.30, 0.64, 1);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   LIGHT THEME
+   Applied when <html class="light"> — overrides every dark
+   hardcoded oklch value with a light-palette equivalent.
+   ═══════════════════════════════════════════════════════════ */
+
+/* @theme token overrides — cascades to all Tailwind bg-surface-* utilities */
+html.light {
+  --color-surface-1: oklch(0.955 0.002 255);   /* page bg        */
+  --color-surface-2: oklch(0.990 0.001 255);   /* card / header  */
+  --color-surface-3: oklch(0.945 0.002 255);   /* input fill     */
+  --color-surface-4: oklch(0.920 0.003 255);   /* hover fill     */
+}
+
+html.light body {
+  background-color: oklch(0.955 0.002 255);
+  color: oklch(0.14 0.005 255);
+}
+
+/* Scrollbar */
+html.light ::-webkit-scrollbar-thumb         { background: oklch(0.74 0.005 255); }
+html.light ::-webkit-scrollbar-thumb:hover   { background: oklch(0.62 0.006 255); }
+
+/* ── Header ─────────────────────────────────────────────── */
+html.light #app-header {
+  border-bottom-color: oklch(0 0 0 / 0.07);
+}
+
+/* ── Cards ───────────────────────────────────────────────── */
+html.light .card {
+  background: oklch(1 0 0 / 0.94);
+  border-color: oklch(0 0 0 / 0.07);
+  box-shadow:
+    0 1px 0 0.5px oklch(1 0 0 / 0.85) inset,
+    0 4px 20px oklch(0 0 0 / 0.09),
+    0 1px 4px oklch(0 0 0 / 0.06);
+}
+html.light .card:hover {
+  border-color: oklch(0 0 0 / 0.12);
+  box-shadow:
+    0 1px 0 0.5px oklch(1 0 0 / 0.85) inset,
+    0 8px 28px oklch(0 0 0 / 0.12),
+    0 2px 6px oklch(0 0 0 / 0.07);
+}
+html.light .card-title  { color: oklch(0.13 0.005 255); }
+
+/* ── KPI Cards ───────────────────────────────────────────── */
+html.light .kpi-card {
+  background: oklch(1 0 0 / 0.94);
+  border-color: oklch(0 0 0 / 0.07);
+  box-shadow: 0 2px 12px oklch(0 0 0 / 0.08), 0 1px 0 0.5px oklch(1 0 0 / 0.85) inset;
+}
+html.light .kpi-card:hover {
+  border-color: oklch(0 0 0 / 0.12);
+  box-shadow: 0 6px 22px oklch(0 0 0 / 0.11), 0 1px 0 0.5px oklch(1 0 0 / 0.85) inset;
+}
+html.light .kpi-icon   { border-color: oklch(0 0 0 / 0.08); }
+html.light .kpi-label  { color: oklch(0.50 0.007 255); }
+html.light .kpi-value  { color: oklch(0.13 0.005 255); }
+
+/* ── Stat Chips ────────────────────────────────────────── */
+html.light .stat-chip {
+  background: oklch(0 0 0 / 0.025);
+  border-color: oklch(0 0 0 / 0.08);
+  box-shadow: none;
+}
+html.light .stat-chip-label { color: oklch(0.50 0.007 255); }
+html.light .stat-chip-value { color: oklch(0.13 0.005 255); }
+
+/* ── Buttons ─────────────────────────────────────────────── */
+html.light .btn-ghost {
+  background: oklch(0 0 0 / 0.04);
+  color: oklch(0.34 0.008 255);
+  border-color: oklch(0 0 0 / 0.12);
+}
+html.light .btn-ghost:hover {
+  background: oklch(0 0 0 / 0.08);
+  color: oklch(0.13 0.005 255);
+  border-color: oklch(0 0 0 / 0.18);
+}
+html.light .btn-oauth {
+  background: oklch(0 0 0 / 0.03);
+  color: oklch(0.14 0.005 255);
+  border-color: oklch(0 0 0 / 0.11);
+}
+html.light .btn-oauth:hover {
+  background: oklch(0 0 0 / 0.07);
+  border-color: oklch(0 0 0 / 0.18);
+}
+html.light .icon-btn             { color: oklch(0.48 0.007 255); }
+html.light .icon-btn:hover {
+  background: oklch(0 0 0 / 0.06);
+  color: oklch(0.13 0.005 255);
+}
+
+/* ── Navigation ─────────────────────────────────────────── */
+html.light .nav-tab              { color: oklch(0.44 0.008 255); }
+html.light .nav-tab:hover {
+  background: oklch(0 0 0 / 0.05);
+  color: oklch(0.14 0.005 255);
+}
+html.light .nav-tab.active {
+  background: oklch(0 0 0 / 0.07);
+  color: oklch(0.10 0.004 255);
+}
+html.light .sidebar-link         { color: oklch(0.44 0.008 255); }
+html.light .sidebar-link:hover {
+  background: oklch(0 0 0 / 0.05);
+  color: oklch(0.24 0.006 255);
+}
+html.light .sidebar-link.active {
+  background: color-mix(in oklab, var(--color-brand) 14%, oklch(0 0 0 / 0.02));
+  color: oklch(0.13 0.005 255);
+  box-shadow: 0 0 0 0.5px color-mix(in oklab, var(--color-brand) 32%, transparent) inset;
+}
+html.light .sidebar-badge {
+  background: oklch(0 0 0 / 0.05);
+  color: oklch(0.44 0.007 255);
+  border-color: oklch(0 0 0 / 0.09);
+}
+
+/* ── Forms ───────────────────────────────────────────────── */
+html.light .form-label          { color: oklch(0.37 0.007 255); }
+html.light .form-hint           { color: oklch(0.52 0.006 255); }
+html.light .form-input {
+  background: oklch(0 0 0 / 0.035);
+  border-color: oklch(0 0 0 / 0.12);
+  color: oklch(0.13 0.005 255);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.06);
+}
+html.light .form-input:hover {
+  border-color: oklch(0 0 0 / 0.17);
+  background: oklch(0 0 0 / 0.05);
+}
+html.light .form-input:focus {
+  border-color: color-mix(in oklab, var(--color-brand) 60%, transparent);
+  background: oklch(0 0 0 / 0.025);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--color-brand) 16%, transparent),
+    0 1px 2px oklch(0 0 0 / 0.07);
+}
+html.light .form-input::placeholder { color: oklch(0.60 0.005 255); }
+html.light .form-input-prefix {
+  background: oklch(0 0 0 / 0.03);
+  border-color: oklch(0 0 0 / 0.12);
+  color: oklch(0.46 0.007 255);
+}
+html.light select.form-input option {
+  background-color: oklch(0.99 0.001 255);
+  color: oklch(0.13 0.005 255);
+}
+html.light input[type="date"].form-input,
+html.light input[type="month"].form-input {
+  color-scheme: light;
+  color: oklch(0.13 0.005 255);
+}
+html.light input[type="date"].form-input::-webkit-datetime-edit,
+html.light input[type="month"].form-input::-webkit-datetime-edit             { color: oklch(0.13 0.005 255); }
+html.light input[type="date"].form-input::-webkit-datetime-edit-day-field,
+html.light input[type="date"].form-input::-webkit-datetime-edit-month-field,
+html.light input[type="date"].form-input::-webkit-datetime-edit-year-field   { color: oklch(0.13 0.005 255); }
+html.light input[type="date"].form-input::-webkit-datetime-edit-text         { color: oklch(0.44 0.006 255); }
+html.light input[type="date"].form-input::-webkit-calendar-picker-indicator,
+html.light input[type="month"].form-input::-webkit-calendar-picker-indicator {
+  filter: none;
+  opacity: 0.40;
+}
+html.light input[type="date"].form-input::-webkit-calendar-picker-indicator:hover,
+html.light input[type="month"].form-input::-webkit-calendar-picker-indicator:hover {
+  filter: sepia(0.4) saturate(4) hue-rotate(25deg);
+  opacity: 0.85;
+}
+html.light .form-range           { background: oklch(0 0 0 / 0.10); }
+html.light .form-range:hover     { background: oklch(0 0 0 / 0.14); }
+html.light .form-range::-webkit-slider-thumb {
+  background: oklch(0.99 0.001 255);
+  box-shadow: 0 1px 4px oklch(0 0 0 / 0.22), 0 0 6px color-mix(in oklab, var(--color-brand) 32%, transparent);
+}
+html.light .checkbox-label       { color: oklch(0.37 0.007 255); }
+html.light .checkbox-label:hover { color: oklch(0.13 0.005 255); }
+html.light .asset-info-icon      { color: oklch(0.55 0.005 255); }
+html.light .asset-info-bubble {
+  background: oklch(0.99 0.001 255 / 0.97);
+  border-color: oklch(0 0 0 / 0.10);
+  color: oklch(0.33 0.007 255);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.16);
+}
+
+/* ── Input Tabs ──────────────────────────────────────────── */
+html.light .input-tab            { color: oklch(0.44 0.008 255); }
+html.light .input-tab:hover      { color: oklch(0.22 0.006 255); }
+html.light .input-tab.active {
+  background: oklch(0 0 0 / 0.08);
+  color: oklch(0.10 0.004 255);
+  box-shadow: 0 1px 0 0.5px oklch(0 0 0 / 0.06) inset, 0 1px 3px oklch(0 0 0 / 0.10);
+}
+
+/* ── Modals ──────────────────────────────────────────────── */
+html.light .modal-overlay        { background: oklch(0 0 0 / 0.42); }
+html.light .modal-card {
+  background: oklch(0.99 0.001 255 / 0.98);
+  border-color: oklch(0 0 0 / 0.08);
+  box-shadow:
+    0 1px 0 0.5px oklch(1 0 0 / 0.85) inset,
+    0 32px 80px oklch(0 0 0 / 0.18),
+    0 8px 24px oklch(0 0 0 / 0.10);
+}
+html.light .auth-tab             { color: oklch(0.44 0.007 255); }
+html.light .auth-tab.active {
+  background: oklch(0 0 0 / 0.07);
+  color: oklch(0.13 0.005 255);
+}
+html.light .divider-text         { color: oklch(0.54 0.006 255); }
+html.light .divider-text::before,
+html.light .divider-text::after  { background: oklch(0 0 0 / 0.09); }
+html.light .password-toggle      { color: oklch(0.52 0.006 255); }
+html.light .password-toggle:hover { color: oklch(0.34 0.007 255); }
+
+/* ── Data Table ───────────────────────────────────────────── */
+html.light .data-table th {
+  color: oklch(0.46 0.007 255);
+  border-bottom-color: oklch(0 0 0 / 0.09);
+}
+html.light .data-table td {
+  color: oklch(0.28 0.006 255);
+  border-bottom-color: oklch(0 0 0 / 0.06);
+}
+html.light .data-table tr:hover td   { background: oklch(0 0 0 / 0.025); }
+html.light .data-table .row-milestone td {
+  background: color-mix(in oklab, var(--color-brand) 7%, oklch(0 0 0 / 0.01));
+}
+
+/* ── Pagination ───────────────────────────────────────────── */
+html.light .pagination-btn {
+  border-color: oklch(0 0 0 / 0.11);
+  color: oklch(0.44 0.007 255);
+}
+html.light .pagination-btn:hover:not(:disabled) {
+  background: oklch(0 0 0 / 0.07);
+  color: oklch(0.13 0.005 255);
+}
+
+/* ── Health Bar ───────────────────────────────────────────── */
+html.light .health-bar-track     { background: oklch(0 0 0 / 0.08); }
+
+/* ── Goal Preview Chips ──────────────────────────────────── */
+html.light .goal-preview-item {
+  background: oklch(0 0 0 / 0.025);
+  border-color: oklch(0 0 0 / 0.08);
+}
+html.light .goal-preview-item:hover { border-color: oklch(0 0 0 / 0.13); }
+html.light .goal-progress-bar       { background: oklch(0 0 0 / 0.09); }
+
+/* ── Toasts ───────────────────────────────────────────────── */
+html.light .toast {
+  box-shadow: 0 1px 0 0.5px oklch(0 0 0 / 0.04) inset, 0 8px 24px oklch(0 0 0 / 0.16);
+}
+html.light .toast-success {
+  background: color-mix(in oklab, var(--color-profit) 9%, oklch(0.99 0.001 255 / 0.97));
+}
+html.light .toast-error {
+  background: color-mix(in oklab, var(--color-loss)   9%, oklch(0.99 0.001 255 / 0.97));
+}
+html.light .toast-info {
+  background: color-mix(in oklab, var(--color-brand)  8%, oklch(0.99 0.001 255 / 0.97));
+}
+
+/* ── AI Chat Bubbles ─────────────────────────────────────── */
+html.light .chat-bubble-ai {
+  background: oklch(0 0 0 / 0.04);
+  color: oklch(0.22 0.006 255);
+  border-color: oklch(0 0 0 / 0.08);
+  box-shadow: 0 2px 8px oklch(0 0 0 / 0.07);
+}
+html.light .chat-bubble-user {
+  color: oklch(0.10 0.004 255);
+  border-color: color-mix(in oklab, var(--color-brand) 38%, transparent);
+}
+html.light .chat-typing-dot       { background: oklch(0.58 0.007 255); }
+html.light .suggested-prompt-btn {
+  background: oklch(0 0 0 / 0.04);
+  border-color: oklch(0 0 0 / 0.09);
+  color: oklch(0.42 0.007 255);
+}
+html.light .suggested-prompt-btn:hover {
+  background: oklch(0 0 0 / 0.08);
+  color: oklch(0.13 0.005 255);
+  border-color: oklch(0 0 0 / 0.17);
+}
+
+/* ── Chart elements ───────────────────────────────────────── */
+html.light .chart-tooltip {
+  background: oklch(0.99 0.001 255 / 0.97);
+  border-color: oklch(0 0 0 / 0.09);
+  box-shadow: 0 8px 24px oklch(0 0 0 / 0.15);
+  color: oklch(0.13 0.005 255);
+}
+html.light .chart-toggle-btn       { color: oklch(0.48 0.007 255); }
+html.light .chart-toggle-btn.active {
+  background: oklch(0 0 0 / 0.07);
+  color: oklch(0.13 0.005 255);
+}
+
+/* ── Theme toggle button ─────────────────────────────────── */
+.btn-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  border-radius: 10px;
+  border: 0.5px solid oklch(1 0 0 / 0.12);
+  background: oklch(1 0 0 / 0.05);
+  color: oklch(0.68 0.18 243);
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease, color 150ms ease, transform 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex-shrink: 0;
+}
+.btn-theme-toggle:hover {
+  background: oklch(1 0 0 / 0.10);
+  border-color: oklch(1 0 0 / 0.20);
+  color: oklch(0.78 0.20 243);
+  transform: rotate(15deg) scale(1.08);
+}
+html.light .btn-theme-toggle {
+  border-color: oklch(0 0 0 / 0.11);
+  background: oklch(0 0 0 / 0.04);
+  color: oklch(0.38 0.012 255);
+}
+html.light .btn-theme-toggle:hover {
+  background: oklch(0 0 0 / 0.08);
+  border-color: oklch(0 0 0 / 0.18);
+  color: oklch(0.20 0.010 255);
+  transform: rotate(-15deg) scale(1.08);
+}
+
+/* ── Tailwind utility overrides (light theme) ────────────────
+   These catch all the hardcoded text-white / text-slate-*
+   utilities in JS-generated HTML and index.html.
+   Placed outside @layer so they beat @layer utilities.
+   ──────────────────────────────────────────────────────────── */
+
+/* Text colours */
+html.light .text-white                  { color: oklch(0.11 0.005 255) !important; }
+html.light .text-slate-100              { color: oklch(0.26 0.005 255) !important; }
+html.light .text-slate-200              { color: oklch(0.32 0.006 255) !important; }
+html.light .text-slate-300              { color: oklch(0.42 0.007 255) !important; }
+
+/* Hover text variants */
+html.light .hover\:text-white:hover     { color: oklch(0.11 0.005 255) !important; }
+
+/* Border colours — make white-alpha borders use black-alpha instead */
+html.light .border-white\/5             { border-color: oklch(0 0 0 / 0.06) !important; }
+html.light .border-white\/10            { border-color: oklch(0 0 0 / 0.09) !important; }
+html.light .border-white\/20            { border-color: oklch(0 0 0 / 0.13) !important; }
+
+/* Background colours — make white-alpha fills use dark-alpha instead */
+html.light .bg-white\/5                 { background-color: oklch(0 0 0 / 0.03) !important; }
+html.light .bg-white\/10                { background-color: oklch(0 0 0 / 0.05) !important; }
+html.light .hover\:bg-white\/10:hover   { background-color: oklch(0 0 0 / 0.06) !important; }
+html.light .bg-surface-3                { background-color: var(--color-surface-3) !important; }
+html.light .bg-surface-2                { background-color: var(--color-surface-2) !important; }
+html.light .bg-surface-1                { background-color: var(--color-surface-1) !important; }
+
+/* User dropdown — needs dark background to stay readable */
+html.light #user-dropdown {
+  background: oklch(0.99 0.001 255 / 0.98) !important;
+  border-color: oklch(0 0 0 / 0.10) !important;
+  box-shadow: 0 8px 32px oklch(0 0 0 / 0.14) !important;
+}
+html.light #user-dropdown-name         { color: oklch(0.11 0.005 255) !important; }
+html.light #btn-logout                 { color: oklch(0.36 0.007 255) !important; }
+
+/* Scenario selector text */
+html.light #scenario-selector          { color: oklch(0.36 0.007 255) !important; }
+
+/* Logo wordmark */
+html.light .text-white.font-bold       { color: oklch(0.11 0.005 255) !important; }
+
+/* Sticky plan header / section headings */
+html.light .sticky { background-color: var(--color-surface-1) !important; }
+
+/* Row breakdown modal */
+html.light #row-breakdown-modal .text-white  { color: oklch(0.11 0.005 255) !important; }
+html.light #row-breakdown-modal .text-slate-300 { color: oklch(0.42 0.007 255) !important; }
+
+/* Projection table close / skip buttons */
+html.light .border-white\/10.rounded-lg { border-color: oklch(0 0 0 / 0.09) !important; }
+
+
+
+/* =========================================================
+   ACCESSIBILITY — prefers-reduced-motion
+   Disable all transitions / animations for users who request
+   reduced motion (WCAG 2.1 SC 2.3.3).
+   ========================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration:       0.01ms !important;
+    animation-iteration-count: 1     !important;
+    transition-duration:      0.01ms !important;
+    scroll-behavior:          auto   !important;
+  }
+
+  .section-panel:not(.hidden) { animation: none !important; }
+  .modal-card                 { animation: none !important; }
+  .skeleton                   { animation: none !important; }
+  .chat-typing-dot            { animation: none !important; }
+  .health-bar-fill,
+  .goal-progress-fill         { transition: none !important; }
 }

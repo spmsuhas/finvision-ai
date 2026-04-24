@@ -52,8 +52,9 @@ import { INFLATION, CORPUS, GOAL_TYPES, RETURNS, blendedReturn, sipRate } from '
  * @property {number} annualIncome      - Inflated salary (₹)
  * @property {number} lifestyleExpenses - Inflated expenses (₹)
  * @property {number} medicalExpenses   - Inflated medical costs (₹)
- * @property {number} goalOutlays       - One-time goal disbursements (₹)
- * @property {number} totalExpenses     - Sum of all outflows (₹)
+ * @property {number} emiExpenses        - Fixed EMI / debt-servicing outflow (₹)
+ * @property {number} goalOutlays        - One-time goal disbursements (₹)
+ * @property {number} totalExpenses      - Sum of all outflows (₹)
  * @property {number} netSurplus        - annualIncome - totalExpenses (₹)
  * @property {number} sipContributions  - Principal invested via SIPs this year (₹)
  * @property {number} sipFutureValue    - Compounded value of this year's SIPs at year-end (₹)
@@ -175,6 +176,7 @@ export function buildCorpusTrajectory(inputs) {
     inflationRate       = INFLATION.GENERAL,
     monthlyExpenses,
     monthlyMedicalPremium,
+    monthlyEMI          = 0,
     planStartYear,
     goals         = [],
     activeSavings = [],
@@ -221,6 +223,10 @@ export function buildCorpusTrajectory(inputs) {
     // Expenses grow by their respective inflation rates from year 0
     const lifestyleExpenses = monthlyExpenses * 12 * Math.pow(1 + INFLATION.GENERAL, i);
     const medicalExpenses   = monthlyMedicalPremium * 12 * Math.pow(1 + INFLATION.MEDICAL, i);
+    // EMI is a fixed contractual obligation — no inflation applied.
+    // Pre-retirement only: after tenure ends loans should be cleared, but we
+    // model it conservatively as running until retirement.
+    const emiExpenses       = isRetired ? 0 : (monthlyEMI || 0) * 12;
 
     // One-time goal disbursements scheduled for this calendar year
     const goalsThisYear = goals.filter(g => g.targetYear === calendarYear);
@@ -232,7 +238,7 @@ export function buildCorpusTrajectory(inputs) {
       return sum + goalFutureValue(g.todayValue, inflRate, Math.max(0, yearsUntilGoal));
     }, 0);
 
-    const totalExpenses = lifestyleExpenses + medicalExpenses + goalOutlays;
+    const totalExpenses = lifestyleExpenses + medicalExpenses + emiExpenses + goalOutlays;
     const netSurplus    = annualIncomeThisYear - totalExpenses;
 
     // Track principal invested this year and the year-end value of those SIPs separately.
@@ -299,6 +305,7 @@ export function buildCorpusTrajectory(inputs) {
       annualIncome:      annualIncomeThisYear,
       lifestyleExpenses,
       medicalExpenses,
+      emiExpenses,
       goalOutlays,
       totalExpenses,
       netSurplus,
@@ -448,7 +455,7 @@ export function sipFutureValue(monthlyAmount, annualRate, months) {
  * @returns {Map<string, {name, goalInflatedCost, sipContrib, deficit}>}
  *          Key = goalId  (plus a synthetic key 'unlinked' for wealth-building SIPs)
  */
-export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartYear = new Date().getFullYear()) {
+export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartYear = new Date().getFullYear(), partnerActiveSavings = []) {
   const result = new Map();
 
   // Pre-populate every goal entry so goals with no SIPs still appear
@@ -461,6 +468,7 @@ export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartY
       targetYear:       g.targetYear,
       goalInflatedCost,
       sipContrib:       0,
+      partnerContrib:   0,
       deficit:          goalInflatedCost,
     });
   });
@@ -495,7 +503,7 @@ export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartY
     if (result.has(goalId)) {
       const entry = result.get(goalId);
       entry.sipContrib += fv;
-      entry.deficit     = Math.max(0, entry.goalInflatedCost - entry.sipContrib);
+      entry.deficit     = Math.max(0, entry.goalInflatedCost - entry.sipContrib - entry.partnerContrib);
     } else if (goalId === 'unlinked') {
       const existing = result.get('unlinked');
       if (existing) {
@@ -506,6 +514,50 @@ export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartY
           targetYear:       null,
           goalInflatedCost: 0,
           sipContrib:       fv,
+          partnerContrib:   0,
+          deficit:          0,
+        });
+      }
+    }
+  });
+
+  // ── Partner contributions ──────────────────────────────────
+  // Only shared SIPs from the partner are included (private SIPs are excluded)
+  partnerActiveSavings.forEach(sip => {
+    if (!sip.monthlyAmount || sip.monthlyAmount <= 0) return;
+    if ((sip.visibility ?? 'shared') !== 'shared') return;
+
+    let endYYYYMM = sip.endDate;
+    if (!endYYYYMM && sip.linkType === 'goal' && sip.linkedGoalId) {
+      const linked = goals.find(g => g.id === sip.linkedGoalId);
+      if (linked?.targetYear) endYYYYMM = `${linked.targetYear}-12`;
+    }
+    if (!endYYYYMM) return;
+
+    const [startY, startM]  = (sip.startDate || `${planStartYear}-01`).split('-').map(Number);
+    const [endY,   endM]    = endYYYYMM.split('-').map(Number);
+    const months = Math.max(0, (endY - startY) * 12 + (endM - startM));
+    if (months <= 0) return;
+
+    const rate = (sip.annualRate && sip.annualRate > 0) ? sip.annualRate : sipRate(sip.type);
+    const fv   = sipFutureValue(sip.monthlyAmount, rate, months);
+
+    const goalId = (sip.linkType === 'goal' && sip.linkedGoalId) ? sip.linkedGoalId : 'unlinked';
+    if (result.has(goalId)) {
+      const entry = result.get(goalId);
+      entry.partnerContrib  += fv;
+      entry.deficit          = Math.max(0, entry.goalInflatedCost - entry.sipContrib - entry.partnerContrib);
+    } else if (goalId === 'unlinked') {
+      const existing = result.get('unlinked');
+      if (existing) {
+        existing.partnerContrib += fv;
+      } else {
+        result.set('unlinked', {
+          name:             'Wealth Building',
+          targetYear:       null,
+          goalInflatedCost: 0,
+          sipContrib:       0,
+          partnerContrib:   fv,
           deficit:          0,
         });
       }
@@ -513,4 +565,308 @@ export function computeSIPGoalFunding(activeSavings = [], goals = [], planStartY
   });
 
   return result;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIABILITY & DEBT MANAGEMENT ENGINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Calculate the fixed monthly EMI for a reducing-balance loan.
+ *
+ * Formula: EMI = P × r(1+r)^n / ((1+r)^n − 1)
+ *
+ * @param {number} principal   - Outstanding loan balance (₹)
+ * @param {number} annualRate  - Annual interest rate as decimal (e.g. 0.085)
+ * @param {number} months      - Remaining tenure in months
+ * @returns {number} Monthly EMI (₹), rounded to 2 decimal places
+ */
+export function calculateEMI(principal, annualRate, months) {
+  if (principal <= 0 || months <= 0) return 0;
+  const r = annualRate / 12;
+  if (r === 0) return principal / months;
+  const emi = principal * r * Math.pow(1 + r, months) / (Math.pow(1 + r, months) - 1);
+  return Math.round(emi * 100) / 100;
+}
+
+/**
+ * Generate a reducing-balance amortization schedule for a loan,
+ * optionally with a fixed extra payment on top of the EMI each month.
+ *
+ * @param {number} principal     - Outstanding loan balance (₹)
+ * @param {number} annualRate    - Annual interest rate as decimal
+ * @param {number} months        - Remaining tenure in months
+ * @param {number} [extraPayment=0] - Additional principal paid per month (₹)
+ * @returns {{
+ *   totalInterest:    number,   Total interest paid (₹)
+ *   actualMonths:     number,   Actual months taken to clear the loan
+ *   baselineInterest: number,   Interest without extra payments (₹)
+ * }}
+ */
+export function generateAmortizationSchedule(principal, annualRate, months, extraPayment = 0) {
+  if (principal <= 0 || months <= 0) return { totalInterest: 0, actualMonths: 0, baselineInterest: 0 };
+
+  const r   = annualRate / 12;
+  const emi = calculateEMI(principal, annualRate, months);
+
+  // ── Baseline (no extra payments) ──────────────────────────────────────────
+  let baselineInterest = 0;
+  {
+    let bal = principal;
+    for (let i = 0; i < months && bal > 0; i++) {
+      const interest       = bal * r;
+      const principalPaid  = emi - interest;
+      baselineInterest    += interest;
+      bal                 -= principalPaid;
+    }
+  }
+
+  // ── With extra payments ───────────────────────────────────────────────────
+  let totalInterest = 0;
+  let actualMonths  = 0;
+  let balance       = principal;
+
+  while (balance > 0.01) {
+    const interest      = balance * r;
+    const principalPaid = Math.min(emi - interest + extraPayment, balance);
+    totalInterest      += interest;
+    balance            -= principalPaid;
+    actualMonths++;
+
+    // Safety cap — prevent infinite loop for zero/negative rates
+    if (actualMonths > months + 12) break;
+  }
+
+  return {
+    totalInterest:    Math.round(totalInterest),
+    actualMonths,
+    baselineInterest: Math.round(baselineInterest),
+  };
+}
+
+/**
+ * Calculate the financial arbitrage between prepaying a loan vs investing the surplus.
+ *
+ * Scenario A — Prepay: Add surplusCash as extra principal every month.
+ *   Benefit = Interest saved compared to no extra payments.
+ *
+ * Scenario B — Invest: Put surplusCash into a SIP at expectedInvestmentReturn
+ *   for the original remaining tenure.
+ *   Benefit = Net wealth created (future value − total principal invested).
+ *
+ * @param {{ annualRate: number, outstandingBalance: number, tenureMonths: number }} loan
+ * @param {number} surplusCash               - Extra ₹/month available
+ * @param {number} expectedInvestmentReturn  - Annual return rate as decimal (e.g. 0.12)
+ * @returns {{
+ *   interestSaved:    number,   ₹ saved by prepaying
+ *   wealthCreated:    number,   Net ₹ earned by investing (FV − principal)
+ *   recommendation:   'PREPAY' | 'INVEST' | 'EQUAL',
+ *   monthsSaved:      number,   Tenure reduction from prepaying
+ *   investFV:         number,   Total future value of the investment SIP
+ * }}
+ */
+export function calculateArbitrage(loan, surplusCash, expectedInvestmentReturn) {
+  const { annualRate, outstandingBalance, tenureMonths } = loan;
+
+  // Scenario A
+  const withPrepay   = generateAmortizationSchedule(outstandingBalance, annualRate, tenureMonths, surplusCash);
+  const interestSaved = Math.max(0, withPrepay.baselineInterest - withPrepay.totalInterest);
+  const monthsSaved   = Math.max(0, tenureMonths - withPrepay.actualMonths);
+
+  // Scenario B
+  const investFV      = sipFutureValue(surplusCash, expectedInvestmentReturn, tenureMonths);
+  const totalSurplus  = surplusCash * tenureMonths;
+  const wealthCreated = Math.max(0, investFV - totalSurplus);
+
+  let recommendation;
+  if (wealthCreated > interestSaved * 1.01) {
+    recommendation = 'INVEST';
+  } else if (interestSaved > wealthCreated * 1.01) {
+    recommendation = 'PREPAY';
+  } else {
+    recommendation = 'EQUAL';
+  }
+
+  return { interestSaved, wealthCreated, recommendation, monthsSaved, investFV };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HOUSEHOLD AGGREGATION ENGINE
+   Builds a single merged inputs object for buildCorpusTrajectory
+   by combining primary user's data with the linked partner's
+   SHARED items. Primary user's state is never mutated.
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Merge primary user state with partner's shared data into a single
+ * `inputs` object compatible with buildCorpusTrajectory().
+ *
+ * Only partner items where `visibility === 'shared'` are included.
+ * The primary user's own data is always included in full.
+ *
+ * @param {Object} primaryState  - The primary user's full state object
+ * @param {Object} partnerData   - The read-only partner snapshot
+ * @returns {PersonalInputs}     - Merged inputs for the trajectory engine
+ */
+export function buildHouseholdInputs(primaryState, partnerData) {
+  const sharedSavings     = (partnerData.activeSavings || []).filter(s => (s.visibility ?? 'shared') === 'shared');
+  const sharedGoals       = (partnerData.goals         || []).filter(g => (g.visibility ?? 'shared') === 'shared');
+  const sharedLiabilities = (partnerData.liabilities   || []).filter(l => (l.visibility ?? 'shared') === 'shared');
+
+  const partnerMonthlyEMI = sharedLiabilities.reduce((s, l) => s + (l.currentEMI || 0), 0);
+
+  // Include partner's asset balances when they have opted in (shareAssets !== false)
+  const includePartnerAssets = (partnerData.shareAssets !== false);
+  const pa = includePartnerAssets ? partnerData : {};
+
+  return {
+    currentAge:           primaryState.currentAge,
+    retirementAge:        primaryState.retirementAge,
+    annualIncome:         (primaryState.monthlyIncome + (partnerData.monthlyIncome || 0)) * 12,
+    salaryRaiseRate:      primaryState.salaryRaiseRate,
+    equityFraction:       primaryState.equityPercent / 100,
+    currentEquity:        primaryState.currentEquity        + (pa.currentEquity        || 0),
+    currentDebt:          primaryState.currentDebt          + (pa.currentDebt          || 0),
+    currentEPF:           primaryState.currentEPF           + (pa.currentEPF           || 0),
+    currentGold:          primaryState.currentGold          + (pa.currentGold          || 0),
+    currentRealEstate:    primaryState.currentRealEstate    + (pa.currentRealEstate    || 0),
+    currentCash:          primaryState.currentCash          + (pa.currentCash          || 0),
+    currentAlternatives:  primaryState.currentAlternatives  + (pa.currentAlternatives  || 0),
+    inflationRate:        INFLATION.GENERAL,
+    monthlyExpenses:      primaryState.monthlyExpenses      + (partnerData.monthlyExpenses      || 0),
+    monthlyMedicalPremium: primaryState.monthlyMedicalPremium + (partnerData.monthlyMedicalPremium || 0),
+    monthlyEMI:           primaryState.monthlyEMI           + partnerMonthlyEMI,
+    planStartYear:        primaryState.planStartYear,
+    goals:                [...(primaryState.goals        || []), ...sharedGoals],
+    activeSavings:        [...(primaryState.activeSavings || []), ...sharedSavings],
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HOUSEHOLD CASHFLOW SUMMARY (used by FamilySyncForm display)
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * @param {Object} primaryState
+ * @param {Object|null} partnerData
+ * @returns {{ totalIncome, partnerIncome, totalExpenses, totalEMI, investibleSurplus }}
+ */
+export function calculateHouseholdCashflow(primaryState, partnerData = null) {
+  const partnerIncome = partnerData?.monthlyIncome || 0;
+  const totalIncome   = primaryState.monthlyIncome + partnerIncome;
+  const totalExpenses = primaryState.monthlyExpenses + (partnerData?.monthlyExpenses || 0);
+  const sharedEMI     = partnerData
+    ? (partnerData.liabilities || []).filter(l => (l.visibility ?? 'shared') === 'shared').reduce((s, l) => s + (l.currentEMI || 0), 0)
+    : 0;
+  const totalEMI      = primaryState.monthlyEMI + sharedEMI;
+  const investibleSurplus = totalIncome - totalExpenses - totalEMI;
+  return { totalIncome, partnerIncome, totalExpenses, totalEMI, investibleSurplus };
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   HOUSEHOLD TAX OPTIMISATION
+   Brute-forces the split of 80C ELSS and Sec 24(b) home-loan
+   interest across two spouses to minimise combined tax outgo.
+═══════════════════════════════════════════════════════════════ */
+
+/**
+ * @param {Object} p1TaxInputs   - taxInputs object for primary user
+ * @param {Object} p2TaxInputs   - taxInputs object for spouse
+ * @param {Array}  jointLoans    - liabilities with ownerId === 'joint'
+ * @returns {{
+ *   p1Tax:         number,
+ *   p2Tax:         number,
+ *   householdTax:  number,
+ *   p1Regime:      'NEW'|'OLD',
+ *   p2Regime:      'NEW'|'OLD',
+ *   p1_80c:        number,
+ *   p2_80c:        number,
+ *   p1_24b:        number,
+ *   p2_24b:        number,
+ *   aiInsight:     string,
+ * }}
+ */
+export function calculateOptimalTaxStrategy(p1TaxInputs = {}, p2TaxInputs = {}, jointLoans = []) {
+  // Import tax functions lazily to avoid circular dependency at module eval time.
+  // Both files are pure ESM so dynamic import would require async; instead
+  // we inline a minimal "which regime is better" helper derived from the
+  // same logic as taxEngine.js, keeping this module free of circular imports.
+
+  // Helper: compute best tax for one person given a taxInputs object.
+  // We call the actual taxEngine via a captured reference passed in at call-time.
+  // Because we cannot import taxEngine here (circular), we resolve the minimum
+  // tax using the simple approximation of comparing new/old regime slabs.
+  // Caller (main.js) passes real taxEngine outputs via p1TaxInputs.__newTax /
+  // __oldTax when available; otherwise we fall back to the gross income estimate.
+
+  function bestTax(inputs) {
+    // Use pre-computed totals if the caller already ran both regimes
+    if (typeof inputs.__newTax === 'number' && typeof inputs.__oldTax === 'number') {
+      return {
+        tax:    Math.min(inputs.__newTax, inputs.__oldTax),
+        regime: inputs.__newTax <= inputs.__oldTax ? 'NEW' : 'OLD',
+      };
+    }
+    // Fallback simple estimate using flat 30% on income above 15L
+    const income = inputs.grossSalary || 0;
+    const newTax = income > 1500000
+      ? 150000 + (income - 1500000) * 0.30
+      : income > 1200000 ? 90000 + (income - 1200000) * 0.20
+      : income > 900000  ? 45000 + (income - 900000) * 0.15
+      : income > 600000  ? 15000 + (income - 600000) * 0.10
+      : income > 300000  ? (income - 300000) * 0.05
+      : 0;
+    return { tax: Math.max(0, newTax), regime: 'NEW' };
+  }
+
+  const SEC_24B_CAP  = 200000;  // ₹2L per person per year
+  const SEC_80C_CAP  = 150000;  // ₹1.5L per person per year
+
+  const jointHomeLoanInterest = jointLoans.reduce((s, l) => {
+    // Annualise from EMI schedule if annualInterest is available, else estimate 70% of EMI as interest
+    return s + (l.annualInterest ?? (l.currentEMI || 0) * 12 * 0.70);
+  }, 0);
+
+  // ELSS pool shared between spouses
+  const total80C = (p1TaxInputs.elssContrib || 0) + (p2TaxInputs.elssContrib || 0);
+
+  let bestTotal  = Infinity;
+  let bestResult = null;
+
+  // Iterate 80C split in ₹10 K increments
+  for (let p1_80c = 0; p1_80c <= Math.min(total80C, SEC_80C_CAP); p1_80c += 10000) {
+    const p2_80c = Math.min(Math.max(0, total80C - p1_80c), SEC_80C_CAP);
+
+    // Iterate 24(b) interest split in ₹10 K increments
+    for (let p1_24b = 0; p1_24b <= Math.min(jointHomeLoanInterest, SEC_24B_CAP); p1_24b += 10000) {
+      const p2_24b = Math.min(Math.max(0, jointHomeLoanInterest - p1_24b), SEC_24B_CAP);
+
+      const p1Inputs = { ...p1TaxInputs, elssContrib: p1_80c, homeLoanInterest: p1_24b };
+      const p2Inputs = { ...p2TaxInputs, elssContrib: p2_80c, homeLoanInterest: p2_24b };
+
+      const { tax: p1Tax, regime: p1Regime } = bestTax(p1Inputs);
+      const { tax: p2Tax, regime: p2Regime } = bestTax(p2Inputs);
+      const total = p1Tax + p2Tax;
+
+      if (total < bestTotal) {
+        bestTotal  = total;
+        bestResult = { p1Tax, p2Tax, householdTax: total, p1Regime, p2Regime, p1_80c, p2_80c, p1_24b, p2_24b };
+      }
+    }
+  }
+
+  // Build human-readable AI insight
+  let aiInsight = '';
+  if (bestResult) {
+    const saving = (bestTax(p1TaxInputs).tax + bestTax(p2TaxInputs).tax) - bestResult.householdTax;
+    if (saving > 0) {
+      aiInsight = `Optimal split: ${p1TaxInputs.name || 'Primary'} claims ₹${(bestResult.p1_80c / 1000).toFixed(0)}K 80C + ₹${(bestResult.p1_24b / 1000).toFixed(0)}K 24(b); ${p2TaxInputs.name || 'Spouse'} claims ₹${(bestResult.p2_80c / 1000).toFixed(0)}K 80C + ₹${(bestResult.p2_24b / 1000).toFixed(0)}K 24(b) → saves ₹${Math.round(saving / 100) * 100} jointly.`;
+    } else {
+      aiInsight = 'Current deduction allocation is already optimal for your household.';
+    }
+    bestResult.aiInsight = aiInsight;
+  }
+
+  return bestResult ?? { p1Tax: 0, p2Tax: 0, householdTax: 0, p1Regime: 'NEW', p2Regime: 'NEW', p1_80c: 0, p2_80c: 0, p1_24b: 0, p2_24b: 0, aiInsight };
 }

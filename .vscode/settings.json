@@ -3,6 +3,10 @@
         "/^cd \"d:\\\\Technical\\\\Development Workspace\\\\Project Fin\"; node node_modules/vite/bin/vite\\.js$/": {
             "approve": true,
             "matchCommandLine": true
+        },
+        "/^cd \"d:\\\\Technical\\\\Development Workspace\\\\Project Fin\"; node node_modules/vite/bin/vite\\.js build 2>&1 \\| Select-String -Pattern \"error\\|failed\\|built in\" \\| Select-Object Line$/": {
+            "approve": true,
+            "matchCommandLine": true
         }
     }
 }

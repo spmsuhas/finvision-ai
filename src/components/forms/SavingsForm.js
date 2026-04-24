@@ -5,6 +5,7 @@
 
 import { INFLATION, RETURNS, SIP_TYPES } from '@/utils/constants.js';
 import { formatRupee } from '@/utils/formatters.js';
+import { confirmDelete } from '@/utils/confirmDelete.js';
 
 function indianFormat(n) {
   if (!n) return '';
@@ -246,12 +247,22 @@ function renderTable(container, savings, goals, onEdit) {
     </div>`;
 
   tableWrap.querySelectorAll('.btn-delete-sip').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', async () => {
       const id = button.dataset.id;
+      const sip = savings.find(s => s.id === id);
+      const label = sip?.name || 'this investment';
+      const confirmed = await confirmDelete({
+        title: 'Remove Investment?',
+        message: `"${label}" will be permanently removed.`,
+      });
+      if (!confirmed) return;
       const updated = savings.filter((sip) => sip.id !== id);
       savings.splice(0, savings.length, ...updated);
       renderTable(container, savings, goals, onEdit);
       updateSummary(container, savings);
+      onUpdate('activeSavings', [...savings]);
+      const badge = container.querySelector('#sip-count-badge');
+      if (badge) badge.textContent = `${savings.length} active`;
     });
   });
 
@@ -274,6 +285,7 @@ export function mountSavingsForm(container, state, onUpdate) {
 
   const savings = state.activeSavings ?? [];
   const getGoals = () => state.goals ?? [];
+  const getState = () => state;
   const today = new Date();
   const thisMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
   const defaultFamily = INVESTMENT_FAMILIES[0].key;
@@ -377,6 +389,21 @@ export function mountSavingsForm(container, state, onUpdate) {
               </select>
             </div>
 
+            <div class="form-group">
+              <label class="form-label">Visibility</label>
+              <div class="vis-toggle" id="sip-visibility">
+                <button type="button" class="vis-btn active" data-vis="shared">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                  Shared
+                </button>
+                <button type="button" class="vis-btn" data-vis="private">
+                  <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  Private
+                </button>
+              </div>
+              <p class="form-hint text-xs">Private investments only appear in Individual view</p>
+            </div>
+
             <div id="sip-goal-wrap" class="form-group hidden">
               <label for="sip-goal" class="form-label">Select Goal</label>
               <select id="sip-goal" class="form-input">${goalOptions(getGoals())}</select>
@@ -428,6 +455,7 @@ export function mountSavingsForm(container, state, onUpdate) {
   const rateEl = container.querySelector('#sip-rate');
   const rateHint = container.querySelector('#sip-rate-hint');
   const linkTypeSel = container.querySelector('#sip-link-type');
+  const visToggle   = container.querySelector('#sip-visibility');
   const goalWrap = container.querySelector('#sip-goal-wrap');
   const assetWrap = container.querySelector('#sip-asset-wrap');
   const goalSel = container.querySelector('#sip-goal');
@@ -437,6 +465,17 @@ export function mountSavingsForm(container, state, onUpdate) {
   const endEl = container.querySelector('#sip-end');
 
   let editingId = null;
+  let currentVisibility = 'shared';
+
+  // Wire visibility toggle
+  visToggle?.addEventListener('click', (e) => {
+    const btn = e.target.closest('.vis-btn[data-vis]');
+    if (!btn) return;
+    currentVisibility = btn.dataset.vis;
+    visToggle.querySelectorAll('.vis-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.vis === currentVisibility),
+    );
+  });
 
   function refreshRateHint(config) {
     if (!rateHint) return;
@@ -557,6 +596,10 @@ export function mountSavingsForm(container, state, onUpdate) {
     toggleLinkInputs();
     if (sip.linkType === 'goal') populateGoalOptions(sip.linkedGoalId || '');
     if (sip.linkType === 'asset') assetSel.value = sip.linkedAssetKey || '';
+    currentVisibility = sip.visibility || 'shared';
+    visToggle?.querySelectorAll('.vis-btn').forEach(b =>
+      b.classList.toggle('active', b.dataset.vis === currentVisibility),
+    );
     startEl.value = sip.startDate || thisMonth;
     endEl.value = sip.endDate || '';
     openModal();
@@ -639,6 +682,7 @@ export function mountSavingsForm(container, state, onUpdate) {
       linkedAssetKey,
       startDate,
       endDate,
+      visibility: currentVisibility,
     };
 
     if (editingId) {
@@ -656,13 +700,4 @@ export function mountSavingsForm(container, state, onUpdate) {
     closeModal();
   });
 
-  container.addEventListener('click', (event) => {
-    if (event.target.closest('.btn-delete-sip')) {
-      setTimeout(() => {
-        onUpdate('activeSavings', [...savings]);
-        const badge = container.querySelector('#sip-count-badge');
-        if (badge) badge.textContent = `${savings.length} active`;
-      }, 0);
-    }
-  });
 }
