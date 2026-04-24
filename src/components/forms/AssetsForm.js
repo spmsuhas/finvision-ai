@@ -5,6 +5,7 @@
  */
 import { almBlendedReturn, INFLATION } from '@/utils/constants.js';
 import { formatRupee } from '@/utils/formatters.js';
+import { calculateAgeBasedAllocation } from '@/utils/financeEngine.js';
 
 /* ── ALM group definitions ──────────────────────────────────── */
 const GROUPS = [
@@ -301,8 +302,16 @@ export function mountAssetsForm(container, state, onUpdate) {
 
       <!-- ── Target Allocation Sliders ─────────────────────── -->
       <div class="card bg-surface-3 max-w-2xl mx-auto" id="target-alloc-card">
-        <h3 class="card-title text-base mb-1">Target Allocation</h3>
-        <p class="text-xs text-slate-500 mb-4">Set your ideal portfolio split. Moving one slider adjusts the others proportionally so the total stays at 100%. The Allocation chart will show a target ring.</p>
+        <div class="flex items-start justify-between gap-3 mb-1">
+          <h3 class="card-title text-base">Target Allocation</h3>
+          <button id="btn-auto-allocate"
+            class="shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-brand/15 text-brand hover:bg-brand/25 border border-brand/30 transition-colors"
+            title="Set target based on your age using the Rule of 100">
+            ✨ Smart Auto-Allocate
+          </button>
+        </div>
+        <p class="text-xs text-slate-500 mb-1">Set your ideal portfolio split. Moving one slider adjusts the others proportionally so the total stays at 100%. The Allocation chart will show a target ring.</p>
+        <p id="auto-allocate-msg" class="hidden text-xs text-emerald-400 mb-3"></p>
         <div class="space-y-3" id="target-alloc-sliders">
           ${[
             ['equity',     'Equity',           'text-brand'],
@@ -371,6 +380,30 @@ export function mountAssetsForm(container, state, onUpdate) {
     const { group, key } = e.target.dataset;
     if (group && key) e.target.value = indianFormat(aa[group]?.[key] || 0);
   }, true);
+
+  /* ── Smart Auto-Allocate button ──────────────────────────── */
+  container.querySelector('#btn-auto-allocate')?.addEventListener('click', () => {
+    const age      = state.currentAge || 30;
+    const computed = calculateAgeBasedAllocation(age);
+
+    // Overwrite local target copy
+    Object.assign(currentTarget, computed);
+
+    // Snap all sliders and labels to new values
+    refreshSliderUI();
+
+    // Commit to state (triggers recalculate → nudges update → chart ring update)
+    onUpdate('targetAllocation', { ...currentTarget });
+
+    // Inline success message — auto-hides after 3 s
+    const msg = container.querySelector('#auto-allocate-msg');
+    if (msg) {
+      msg.textContent = `\u2713 Target optimised for age ${age} — Equity ${computed.equity}%, Debt ${computed.debt}%, Real Assets ${computed.realAssets}%, Cash ${computed.cash}%`;
+      msg.classList.remove('hidden');
+      clearTimeout(msg._hideTimer);
+      msg._hideTimer = setTimeout(() => msg.classList.add('hidden'), 4000);
+    }
+  });
 
   /* ── Target Allocation Sliders ────────────────────────────── */
   const TARGET_CLASSES = ['equity', 'debt', 'realAssets', 'cash'];

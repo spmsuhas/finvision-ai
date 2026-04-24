@@ -986,3 +986,25 @@ export function generateRebalancingNudges(drift, activeSavings = []) {
 
   return nudges;
 }
+
+/**
+ * Calculate an age-based "glide path" target allocation.
+ * Uses a modern adaptation of the Rule of 100 for 4 asset classes.
+ *
+ * Formula:
+ *   equity     = clamp(100 − age, 20, 75)
+ *   realAssets = 10  (constant inflation hedge)
+ *   cash       = 5   (liquidity buffer)
+ *   debt       = 100 − equity − realAssets − cash
+ *
+ * @param {number} currentAge - User's current age
+ * @returns {{ equity: number, debt: number, realAssets: number, cash: number }}
+ */
+export function calculateAgeBasedAllocation(currentAge) {
+  const age        = Math.max(0, Math.min(100, Math.round(currentAge)));
+  const equity     = Math.max(20, Math.min(75, 100 - age));
+  const realAssets = 10;
+  const cash       = 5;
+  const debt       = 100 - equity - realAssets - cash;
+  return { equity, debt, realAssets, cash };
+}
