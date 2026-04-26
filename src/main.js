@@ -414,6 +414,8 @@ function updateAllUI() {
   updateViewModeUI();
   updatePartnerPanels();
   updateRebalancingAlerts();
+  // Keep dashboard greeting in sync with Personal Details name field
+  if (state.name) setText('dash-user-name', state.name);
 }
 
 function updateRebalancingAlerts() {
@@ -1026,9 +1028,9 @@ async function handleAuthStateChange(user) {
     state.userName  = user.displayName || user.email?.split('@')[0] || 'Investor';
     state.userEmail = user.email;
 
-    setText('user-initial', state.userName[0].toUpperCase());
-    setText('dash-user-name', state.userName);
-    setText('user-dropdown-name', state.userName);
+    setText('user-initial', (state.name || state.userName)[0].toUpperCase());
+    setText('dash-user-name', state.name || state.userName);
+    setText('user-dropdown-name', state.name || state.userName);
     setText('user-dropdown-email', user.email || '');
 
     guestArea?.classList.add('hidden');
@@ -1061,6 +1063,12 @@ async function handleAuthStateChange(user) {
         // Re-render all forms so inputs reflect the loaded values
         mountAllForms();
         recalculate();
+        // Refresh greeting with saved name (overrides Google display name set above)
+        if (state.name) {
+          setText('dash-user-name', state.name);
+          setText('user-dropdown-name', state.name);
+          setText('user-initial', state.name[0].toUpperCase());
+        }
         showToast('Your saved plan has been loaded.', 'success');
       }
     } catch (err) {
@@ -1991,7 +1999,7 @@ function updatePartnerPanels() {
 function initApp() {
   // Set current FY in header
   setText('dash-plan-year', APP.PLAN_YEAR);
-  setText('dash-user-name', state.userName);
+  setText('dash-user-name', state.name || state.userName);
 
   // Mount all form components
   mountAllForms();
